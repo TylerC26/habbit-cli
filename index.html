@@ -1020,7 +1020,8 @@ function exec(line) {
       break;
     case 'whoami': toast('tylerc26@habbit.cli');                              break;
     case 'sync':
-      if (rest[0] === 'pull')        { sbPull().then(render); }
+      if (rest[0] === 'pull')        { sbPull().then(render).catch(e => err('sync pull: ' + (e.message||e))); }
+      else if (rest[0] === 'push')   { sbPush(); }
       else if (rest[0] === 'off')    { sbDisconnect(); }
       else                            { openSyncModal(); }
       break;
@@ -1039,7 +1040,8 @@ function showHelp() {
     'clear           — clear log',
     'reset --force   — wipe all data',
     'sync            — configure supabase backend',
-    'sync pull       — re-pull from supabase',
+    'sync pull       — re-pull from supabase (cloud is authoritative)',
+    'sync push       — upload local habits when cloud is empty',
     'sync off        — disconnect supabase'
   ];
   for (const l of lines) logEvt('', l);
@@ -1124,6 +1126,7 @@ const SUPA_AUTH_KEY = 'habbit.supabase.auth';
 let sb = null;        // supabase client
 let sbState = 'offline';   // offline | connecting | syncing | online | error
 let sbReady = false;       // true once initial pull completes — gates pushes
+let sbChannel = null;      // realtime channel for live updates
 const sbQueue = [];        // pushes deferred until sbReady
 
 function loadSbCfg()  { try { return JSON.parse(localStorage.getItem(SUPA_CFG_KEY)); } catch { return null; } }
@@ -1170,6 +1173,7 @@ async function sbConnect() {
     logEvt('ok', 'sync online');
     drainQueue();
     render();
+    sbSubscribe();
   } catch (e) {
     setSbState('error');
     logEvt('err', 'sync: ' + (e.message || e));
@@ -1186,16 +1190,8 @@ async function sbPull() {
   if (habitsRes.error) throw habitsRes.error;
   if (logsRes.error)   throw logsRes.error;
 
-  // First-connect: empty remote + populated local → push local up so we
-  // don't wipe the user's existing data on the very first sync.
-  if (habitsRes.data.length === 0 && state.habits.length > 0) {
-    const toInsert = state.habits.map(h => ({ name: h.name, done: h.done || [] }));
-    const ins = await sb.from('habits').insert(toInsert).select('id, name, done, created_at');
-    if (ins.error) throw ins.error;
-    habitsRes.data = ins.data;
-    logEvt('ok', `migrated ${ins.data.length} local habits to cloud`);
-  }
-
+  // Cloud is authoritative — replace local entirely with whatever's in the
+  // database. If the DB is empty, show empty (run `sync push` to upload local).
   state.habits = habitsRes.data.map(h => ({ id: h.id, name: h.name, done: h.done || [] }));
   state.log = logsRes.data.reverse().map(l => ({
     ts: new Date(l.ts).getTime(),
@@ -1208,6 +1204,8 @@ async function sbPull() {
 }
 
 function sbDisconnect() {
+  if (sbChannel && sb) { try { sb.removeChannel(sbChannel); } catch {} }
+  sbChannel = null;
   if (sb) { try { sb.auth.signOut(); } catch {} }
   clearSbCfg();
   localStorage.removeItem(SUPA_AUTH_KEY);
@@ -1216,6 +1214,40 @@ function sbDisconnect() {
   logEvt('', 'sync disconnected');
   render();
   toast('sync disconnected');
+}
+
+function sbSubscribe() {
+  if (!sb) return;
+  if (sbChannel) { try { sb.removeChannel(sbChannel); } catch {} sbChannel = null; }
+  let pending = false;
+  const refetch = () => {
+    if (pending) return;
+    pending = true;
+    setTimeout(() => {
+      pending = false;
+      sbPull().then(render).catch(e => console.warn('rt pull:', e.message || e));
+    }, 200);
+  };
+  sbChannel = sb
+    .channel('habbit-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'habits' }, refetch)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'logs'   }, refetch)
+    .subscribe();
+}
+
+async function sbPush() {
+  if (sbState !== 'online') return err('sync push: not connected');
+  if (state.habits.length === 0) return toast('no local habits to push');
+  // Don't duplicate if cloud already has data.
+  const check = await sb.from('habits').select('id').limit(1);
+  if (check.error) return err('sync push: ' + check.error.message);
+  if (check.data.length > 0) return err('sync push: cloud already has habits — pull instead');
+  const toInsert = state.habits.map(h => ({ name: h.name, done: h.done || [] }));
+  const { data, error } = await sb.from('habits').insert(toInsert).select('id, name, done');
+  if (error) return err('sync push: ' + error.message);
+  state.habits = data.map(h => ({ id: h.id, name: h.name, done: h.done || [] }));
+  save(); render();
+  toast(`pushed ${data.length} habits to cloud`);
 }
 
 /* Replace mutations with sync-aware versions. The originals stay defined

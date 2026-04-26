@@ -42,3 +42,8 @@ create policy "logs owner all" on public.logs
 -- Default user_id to the caller so inserts don't have to set it explicitly.
 alter table public.habits alter column user_id set default auth.uid();
 alter table public.logs   alter column user_id set default auth.uid();
+
+-- Realtime: broadcast row changes to subscribed clients so the UI updates
+-- live when habits are edited from another tab/device or the table editor.
+alter publication supabase_realtime add table public.habits;
+alter publication supabase_realtime add table public.logs;
