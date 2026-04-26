@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;0,800;1,400&family=VT323&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
 <style>
   :root {
     --bg:        #050a06;
@@ -788,18 +789,15 @@
 
 <div class="modal-backdrop" id="sync-modal">
   <div class="modal">
-    <h2>SYNC :: SUPABASE</h2>
-    <p>// connect to supabase to back up habits across devices.<br>
-       paste your project url + anon key. enable anonymous sign-ins under auth → providers, and run supabase/schema.sql once.<br>
-       habits are shared across all sessions connected to this project (sorted by id).</p>
-    <label for="sync-url">PROJECT URL</label>
-    <input id="sync-url" type="text" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off" spellcheck="false">
-    <label for="sync-key">ANON KEY</label>
-    <input id="sync-key" type="text" placeholder="eyJhbGciOi..." autocomplete="off" spellcheck="false">
+    <h2>SYNC :: LOGIN</h2>
+    <p>// enter your password to scope habits to your identity.<br>
+       same password = same dataset. different password = different dataset. there is no recovery.</p>
+    <label for="sync-pass">PASSWORD</label>
+    <input id="sync-pass" type="password" autocomplete="current-password" spellcheck="false">
     <div class="modal-actions">
-      <button id="sync-disconnect" class="danger">disconnect</button>
+      <button id="sync-disconnect" class="danger">log out</button>
       <button id="sync-cancel">cancel</button>
-      <button id="sync-save" class="primary">connect</button>
+      <button id="sync-save" class="primary">log in</button>
     </div>
   </div>
 </div>
@@ -1090,10 +1088,10 @@ function showHelp() {
     'ls              — list count',
     'clear           — clear log',
     'reset --force   — wipe all data',
-    'sync            — configure supabase backend',
+    'sync            — open the login modal',
     'sync pull       — re-pull from supabase (cloud is authoritative)',
     'sync push       — upload local habits when cloud is empty',
-    'sync off        — disconnect supabase',
+    'sync off        — log out and clear local state',
     'syncdb          — pull all habits from supabase and render'
   ];
   for (const l of lines) logEvt('', l);
@@ -1177,8 +1175,8 @@ window.addEventListener('load', () => {
 });
 
 /* ─── Supabase sync ──────────────────────────────────────── */
-const SUPA_CFG_KEY  = 'habbit.supabase.config';
 const SUPA_AUTH_KEY = 'habbit.supabase.auth';
+const USER_KEY_KEY  = 'habbit.user.key';   // SHA-256 hex of the login password
 
 let sb = null;        // supabase client
 let sbState = 'offline';   // offline | connecting | syncing | online | error
@@ -1186,9 +1184,20 @@ let sbReady = false;       // true once initial pull completes — gates pushes
 let sbChannel = null;      // realtime channel for live updates
 const sbQueue = [];        // pushes deferred until sbReady
 
-function loadSbCfg()  { try { return JSON.parse(localStorage.getItem(SUPA_CFG_KEY)); } catch { return null; } }
-function saveSbCfg(c) { localStorage.setItem(SUPA_CFG_KEY, JSON.stringify(c)); }
-function clearSbCfg() { localStorage.removeItem(SUPA_CFG_KEY); }
+function getSbCfg() {
+  const c = window.HABBIT_CONFIG;
+  if (!c || !c.SUPABASE_URL || !c.SUPABASE_ANON_KEY) return null;
+  if (c.SUPABASE_URL.includes('YOUR-PROJECT-REF') || c.SUPABASE_ANON_KEY.includes('YOUR-')) return null;
+  return { url: c.SUPABASE_URL, key: c.SUPABASE_ANON_KEY };
+}
+function getUserKey()  { return localStorage.getItem(USER_KEY_KEY) || ''; }
+function setUserKeyLS(k) { localStorage.setItem(USER_KEY_KEY, k); }
+function clearUserKey() { localStorage.removeItem(USER_KEY_KEY); }
+
+async function sha256hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 function setSbState(s, label) {
   sbState = s;
@@ -1209,9 +1218,11 @@ function drainQueue() {
 }
 
 async function sbConnect() {
-  const cfg = loadSbCfg();
-  if (!cfg || !cfg.url || !cfg.key) { setSbState('offline'); return; }
+  const cfg = getSbCfg();
+  if (!cfg) { setSbState('offline'); return; }
   if (!window.supabase) { setSbState('error'); logEvt('err', 'supabase sdk failed to load'); render(); return; }
+  if (!getUserKey()) { setSbState('offline'); openSyncModal(); return; }
+
   setSbState('connecting');
   try {
     sb = window.supabase.createClient(cfg.url, cfg.key, {
@@ -1240,9 +1251,11 @@ async function sbConnect() {
 
 async function sbPull() {
   if (!sb) return;
+  const uk = getUserKey();
+  if (!uk) return;
   const [habitsRes, logsRes] = await Promise.all([
-    sb.from('habits').select('id, name, done').order('id', { ascending: true }),
-    sb.from('logs').select('ts, kind, msg, name').order('ts', { ascending: false }).limit(200)
+    sb.from('habits').select('id, name, done').eq('user_key', uk).order('id', { ascending: true }),
+    sb.from('logs').select('ts, kind, msg, name').eq('user_key', uk).order('ts', { ascending: false }).limit(200)
   ]);
   if (habitsRes.error) throw habitsRes.error;
   if (logsRes.error)   throw logsRes.error;
@@ -1264,13 +1277,15 @@ function sbDisconnect() {
   if (sbChannel && sb) { try { sb.removeChannel(sbChannel); } catch {} }
   sbChannel = null;
   if (sb) { try { sb.auth.signOut(); } catch {} }
-  clearSbCfg();
+  clearUserKey();
   localStorage.removeItem(SUPA_AUTH_KEY);
   sb = null; sbReady = false;
+  // Wipe local state so the next login doesn't blend datasets visually.
+  state.habits = []; state.log = []; save();
   setSbState('offline');
-  logEvt('', 'sync disconnected');
+  logEvt('', 'logged out');
   render();
-  toast('sync disconnected');
+  toast('logged out');
 }
 
 function sbSubscribe() {
@@ -1295,11 +1310,13 @@ function sbSubscribe() {
 async function sbPush() {
   if (sbState !== 'online') return err('sync push: not connected');
   if (state.habits.length === 0) return toast('no local habits to push');
-  // Don't duplicate if cloud already has data.
-  const check = await sb.from('habits').select('id').limit(1);
+  const uk = getUserKey();
+  if (!uk) return err('sync push: not logged in');
+  // Don't duplicate if cloud already has data for this user_key.
+  const check = await sb.from('habits').select('id').eq('user_key', uk).limit(1);
   if (check.error) return err('sync push: ' + check.error.message);
   if (check.data.length > 0) return err('sync push: cloud already has habits — pull instead');
-  const toInsert = state.habits.map(h => ({ name: h.name, done: h.done || [] }));
+  const toInsert = state.habits.map(h => ({ name: h.name, done: h.done || [], user_key: uk }));
   const { data, error } = await sb.from('habits').insert(toInsert).select('id, name, done');
   if (error) return err('sync push: ' + error.message);
   state.habits = data.map(h => ({ id: h.id, name: h.name, done: h.done || [] }));
@@ -1320,8 +1337,9 @@ addHabit = function(name) {
   toast(`+ added "${name}"`);
   save(); render();
   pushQ(async () => {
+    const uk = getUserKey();
     const { data, error } = await sb.from('habits')
-      .insert({ name, done: [] })
+      .insert({ name, done: [], user_key: uk })
       .select('id').single();
     if (error) throw error;
     const h = state.habits.find(x => x.id === tempId);
@@ -1394,38 +1412,49 @@ logEvt = function(kind, msg, name='') {
   state.log.push(entry);
   if (state.log.length > 200) state.log = state.log.slice(-200);
   if (sbReady) {
+    const uk = getUserKey();
     sb.from('logs').insert({
       ts: new Date(entry.ts).toISOString(),
       kind: entry.kind || '',
       msg:  entry.msg,
-      name: entry.name || ''
+      name: entry.name || '',
+      user_key: uk
     }).then(({ error }) => { if (error) console.warn('log push:', error.message); });
   }
 };
 
 /* ─── Modal wiring ───────────────────────────────────────── */
 function openSyncModal() {
-  const cfg = loadSbCfg() || {};
-  document.getElementById('sync-url').value = cfg.url || '';
-  document.getElementById('sync-key').value = cfg.key || '';
+  if (!getSbCfg()) {
+    toast('config.js missing — fill in supabase url + anon key', 'err');
+    return;
+  }
+  document.getElementById('sync-pass').value = '';
   document.getElementById('sync-modal').classList.add('show');
-  setTimeout(() => document.getElementById('sync-url').focus(), 50);
+  setTimeout(() => document.getElementById('sync-pass').focus(), 50);
 }
 function closeSyncModal() {
   document.getElementById('sync-modal').classList.remove('show');
   if (!isMobile()) cmdInput.focus();
 }
 
-document.getElementById('sync-cancel').addEventListener('click', closeSyncModal);
-document.getElementById('sync-disconnect').addEventListener('click', () => { closeSyncModal(); sbDisconnect(); });
-document.getElementById('sync-save').addEventListener('click', async () => {
-  const url = document.getElementById('sync-url').value.trim();
-  const key = document.getElementById('sync-key').value.trim();
-  if (!url || !key) { toast('url and key required', 'err'); return; }
-  saveSbCfg({ url, key });
+async function submitLogin() {
+  const pw = document.getElementById('sync-pass').value;
+  if (!pw) { toast('password required', 'err'); return; }
+  const hash = await sha256hex(pw);
+  setUserKeyLS(hash);
   closeSyncModal();
+  // Reset local state — the next pull will load this password's dataset.
+  state.habits = []; state.log = []; save(); render();
   sbReady = false;
   await sbConnect();
+}
+
+document.getElementById('sync-cancel').addEventListener('click', closeSyncModal);
+document.getElementById('sync-disconnect').addEventListener('click', () => { closeSyncModal(); sbDisconnect(); });
+document.getElementById('sync-save').addEventListener('click', submitLogin);
+document.getElementById('sync-pass').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); submitLogin(); }
 });
 document.getElementById('sync-modal').addEventListener('click', (e) => {
   if (e.target.id === 'sync-modal') closeSyncModal();

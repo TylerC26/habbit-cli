@@ -23,6 +23,14 @@ create table if not exists public.logs (
 
 create index if not exists logs_user_ts_idx on public.logs(user_id, ts desc);
 
+-- Per-login-password scoping. The app SHA-256 hashes a password the user
+-- types into the LOGIN modal and stores the hex digest as user_key. All
+-- queries filter by this column so two passwords map to two datasets.
+alter table public.habits add column if not exists user_key text not null default '';
+alter table public.logs   add column if not exists user_key text not null default '';
+create index if not exists habits_user_key_idx on public.habits(user_key);
+create index if not exists logs_user_key_ts_idx on public.logs(user_key, ts desc);
+
 -- RLS: shared dataset — every signed-in (including anonymous) session sees
 -- and edits all rows. This makes habits sync across devices/browsers even
 -- when each browser has its own anonymous user_id. Trade-off: anyone with
@@ -51,5 +59,14 @@ alter table public.logs   alter column user_id set default auth.uid();
 
 -- Realtime: broadcast row changes to subscribed clients so the UI updates
 -- live when habits are edited from another tab/device or the table editor.
-alter publication supabase_realtime add table public.habits;
-alter publication supabase_realtime add table public.logs;
+-- Wrapped in DO blocks because `alter publication add table` errors if the
+-- table is already a member, which prevents safe re-runs of this file.
+do $$ begin
+  alter publication supabase_realtime add table public.habits;
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  alter publication supabase_realtime add table public.logs;
+exception when duplicate_object then null;
+end $$;
