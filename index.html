@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HABBIT.CLI :: terminal habit tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;0,800;1,400&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #050a06;
+    --bg-deep:   #020503;
+    --fg:        #b6ff7a;
+    --fg-dim:    #5fa84a;
+    --fg-faint:  #2c5022;
+    --accent:    #ffb000;
+    --danger:    #ff3b3b;
+    --success:   #00ff88;
+    --grid:      rgba(99, 220, 110, 0.06);
+    --scan:      rgba(0, 0, 0, 0.18);
+    --glow:      0 0 6px rgba(150, 255, 120, 0.55), 0 0 18px rgba(120, 255, 100, 0.18);
+    --glow-amber:0 0 6px rgba(255, 176, 0, 0.55), 0 0 18px rgba(255, 176, 0, 0.18);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow: hidden;
+    cursor: default;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── CRT layers ──────────────────────────────────────────── */
+  .crt::before {
+    content: "";
+    position: fixed; inset: 0;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 2px,
+        var(--scan) 2px,
+        var(--scan) 3px
+      );
+    pointer-events: none;
+    z-index: 999;
+    mix-blend-mode: multiply;
+  }
+  .crt::after {
+    content: "";
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse at center,
+        transparent 55%,
+        rgba(0,0,0,0.55) 100%);
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  .grid-bg {
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .noise {
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.7  0 0 0 0 1  0 0 0 0 0.5  0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    pointer-events: none;
+    opacity: 0.5;
+    z-index: 998;
+    animation: noiseShift 0.6s steps(4) infinite;
+  }
+  @keyframes noiseShift {
+    0%   { transform: translate(0, 0); }
+    25%  { transform: translate(-3px, 2px); }
+    50%  { transform: translate(2px, -3px); }
+    75%  { transform: translate(-2px, -2px); }
+    100% { transform: translate(0, 0); }
+  }
+
+  /* ─── Layout shell ────────────────────────────────────────── */
+  .shell {
+    position: relative;
+    z-index: 1;
+    height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding: 18px 24px 14px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ─── Top bar ─────────────────────────────────────────────── */
+  .topbar {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: end;
+    gap: 24px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--fg-faint);
+  }
+
+  .brand {
+    font-family: 'VT323', 'JetBrains Mono', monospace;
+    font-size: 56px;
+    line-height: 0.85;
+    letter-spacing: 1px;
+    text-shadow: var(--glow);
+    color: var(--fg);
+    position: relative;
+  }
+  .brand .blink {
+    color: var(--accent);
+    text-shadow: var(--glow-amber);
+    animation: blink 1.05s steps(1) infinite;
+  }
+  .brand small {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 4px;
+    color: var(--fg-dim);
+    text-shadow: none;
+    margin-top: 4px;
+    text-transform: uppercase;
+  }
+
+  .meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    font-size: 11px;
+    color: var(--fg-dim);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+  .meta .row { display: flex; gap: 14px; }
+  .meta .k { color: var(--fg-faint); }
+  .meta .v { color: var(--fg); }
+
+  .stat-strip {
+    display: flex;
+    gap: 18px;
+    align-items: stretch;
+  }
+  .stat {
+    border: 1px solid var(--fg-faint);
+    padding: 6px 12px;
+    min-width: 92px;
+    position: relative;
+  }
+  .stat::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 0, transparent 50%, rgba(150,255,120,0.04) 100%);
+    pointer-events: none;
+  }
+  .stat .label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--fg-dim);
+    text-transform: uppercase;
+  }
+  .stat .value {
+    font-family: 'VT323', monospace;
+    font-size: 32px;
+    line-height: 1;
+    color: var(--fg);
+    text-shadow: var(--glow);
+  }
+  .stat.amber .value { color: var(--accent); text-shadow: var(--glow-amber); }
+
+  /* ─── Main panel ─────────────────────────────────────────── */
+  main {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 22px;
+    padding-top: 16px;
+    overflow: hidden;
+  }
+
+  .panel {
+    border: 1px solid var(--fg-faint);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel::before {
+    content: "";
+    position: absolute; top: 0; left: 0; right: 0; height: 22px;
+    background: var(--fg-faint);
+    opacity: 0.18;
+  }
+  .panel-title {
+    position: relative;
+    z-index: 1;
+    padding: 4px 12px;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--fg);
+    border-bottom: 1px dashed var(--fg-faint);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .panel-title .dots {
+    display: inline-flex; gap: 4px;
+  }
+  .panel-title .dots span {
+    width: 8px; height: 8px;
+    border: 1px solid var(--fg-dim);
+    display: inline-block;
+  }
+  .panel-title .dots span:nth-child(1) { background: var(--danger); border-color: var(--danger); }
+  .panel-title .dots span:nth-child(2) { background: var(--accent); border-color: var(--accent); }
+  .panel-title .dots span:nth-child(3) { background: var(--fg);     border-color: var(--fg); }
+
+  .panel-body {
+    padding: 14px 16px;
+    overflow: auto;
+    flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: var(--fg-faint) transparent;
+  }
+  .panel-body::-webkit-scrollbar { width: 8px; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--fg-faint); }
+
+  /* ─── Habit list ─────────────────────────────────────────── */
+  .habit-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .habit-table thead th {
+    text-align: left;
+    font-weight: 500;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--fg-dim);
+    padding: 4px 8px;
+    border-bottom: 1px dashed var(--fg-faint);
+    text-transform: uppercase;
+  }
+  .habit-table tbody tr {
+    border-bottom: 1px dotted var(--fg-faint);
+    transition: background 80ms;
+  }
+  .habit-table tbody tr:hover {
+    background: rgba(150, 255, 120, 0.05);
+  }
+  .habit-table td {
+    padding: 9px 8px;
+    vertical-align: middle;
+  }
+  .habit-name {
+    font-weight: 500;
+    color: var(--fg);
+    text-shadow: 0 0 4px rgba(150,255,120,0.3);
+  }
+  .habit-name .id {
+    color: var(--fg-faint);
+    margin-right: 8px;
+    font-size: 11px;
+  }
+  .habit-tag {
+    display: inline-block;
+    border: 1px solid var(--fg-faint);
+    padding: 1px 6px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--fg-dim);
+    text-transform: uppercase;
+  }
+  .week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 16px);
+    gap: 3px;
+  }
+  .day {
+    width: 16px; height: 16px;
+    border: 1px solid var(--fg-faint);
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    transition: transform 80ms ease;
+  }
+  .day:hover { transform: scale(1.18); border-color: var(--fg); }
+  .day.done {
+    background: var(--fg);
+    border-color: var(--fg);
+    box-shadow: 0 0 6px rgba(150,255,120,0.6);
+  }
+  .day.today {
+    border-color: var(--accent);
+    box-shadow: 0 0 4px rgba(255,176,0,0.6);
+  }
+  .day.today.done {
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(255,176,0,0.7);
+  }
+  .day .lbl {
+    position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; color: var(--fg-faint);
+  }
+
+  .streak {
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--accent);
+    text-shadow: var(--glow-amber);
+  }
+  .streak::before { content: "⚡ "; }
+
+  .row-actions button {
+    background: transparent;
+    border: 1px solid var(--fg-faint);
+    color: var(--fg-dim);
+    font-family: inherit;
+    font-size: 10px;
+    padding: 2px 6px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 80ms;
+  }
+  .row-actions button:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+    text-shadow: 0 0 6px rgba(255,59,59,0.6);
+  }
+
+  /* ─── Sidebar (logs + heatmap) ───────────────────────────── */
+  .right-col {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 22px;
+    overflow: hidden;
+  }
+
+  .heatmap {
+    display: grid;
+    grid-template-columns: repeat(30, 1fr);
+    gap: 2px;
+  }
+  .heatmap .cell {
+    aspect-ratio: 1;
+    background: var(--fg-faint);
+    opacity: 0.25;
+  }
+  .heatmap .cell[data-l="1"] { opacity: 0.45; }
+  .heatmap .cell[data-l="2"] { opacity: 0.65; background: var(--fg-dim); }
+  .heatmap .cell[data-l="3"] { opacity: 0.85; background: var(--fg); }
+  .heatmap .cell[data-l="4"] { opacity: 1; background: var(--fg); box-shadow: 0 0 4px rgba(150,255,120,0.6); }
+  .heatmap-legend {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 9px; color: var(--fg-dim); letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 10px;
+  }
+  .heatmap-legend .swatch {
+    width: 12px; height: 12px; background: var(--fg-faint);
+  }
+
+  .log-list {
+    list-style: none; margin: 0; padding: 0;
+    font-size: 12px;
+  }
+  .log-list li {
+    padding: 4px 0;
+    border-bottom: 1px dotted var(--fg-faint);
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 10px;
+    color: var(--fg-dim);
+  }
+  .log-list .ts {
+    color: var(--fg-faint);
+    font-size: 11px;
+  }
+  .log-list .msg .tag {
+    color: var(--accent);
+    margin-right: 6px;
+  }
+  .log-list .msg .tag.err { color: var(--danger); }
+  .log-list .msg .tag.ok  { color: var(--success); }
+  .log-list .name { color: var(--fg); }
+
+  /* ─── Command line ───────────────────────────────────────── */
+  .cmdline {
+    margin-top: 14px;
+    border: 1px solid var(--fg);
+    box-shadow: var(--glow);
+    background: var(--bg-deep);
+    padding: 8px 12px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
+  }
+  .prompt {
+    color: var(--accent);
+    text-shadow: var(--glow-amber);
+    font-weight: 700;
+    user-select: none;
+  }
+  .cmdline input {
+    background: transparent;
+    border: 0;
+    outline: 0;
+    color: var(--fg);
+    font: inherit;
+    font-size: 14px;
+    width: 100%;
+    text-shadow: 0 0 4px rgba(150,255,120,0.4);
+    caret-color: transparent;
+    text-transform: uppercase;
+  }
+  .caret {
+    width: 9px; height: 16px; background: var(--fg);
+    display: inline-block; box-shadow: var(--glow);
+    animation: blink 1.05s steps(1) infinite;
+  }
+  .hint {
+    font-size: 10px;
+    color: var(--fg-dim);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+  .hint kbd {
+    border: 1px solid var(--fg-faint);
+    padding: 0 4px;
+    color: var(--fg);
+    font-family: inherit;
+    font-size: 10px;
+    margin: 0 2px;
+  }
+
+  /* ─── Boot animation ─────────────────────────────────────── */
+  .boot-overlay {
+    position: fixed; inset: 0;
+    background: var(--bg-deep);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    color: var(--fg);
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    text-shadow: var(--glow);
+  }
+  .boot-overlay.hidden { animation: bootOut 0.55s forwards; }
+  @keyframes bootOut {
+    to { opacity: 0; visibility: hidden; transform: scaleY(0.01); filter: blur(4px); }
+  }
+  .boot-bar {
+    width: 280px; height: 8px;
+    border: 1px solid var(--fg);
+    overflow: hidden; position: relative;
+  }
+  .boot-bar i {
+    display: block; height: 100%;
+    background: var(--fg);
+    width: 0;
+    animation: bootFill 1.1s ease-out forwards;
+    box-shadow: var(--glow);
+  }
+  @keyframes bootFill { to { width: 100%; } }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ─── Misc ───────────────────────────────────────────────── */
+  ::selection { background: var(--fg); color: var(--bg-deep); }
+
+  .empty {
+    text-align: center;
+    color: var(--fg-faint);
+    padding: 36px 8px;
+    font-style: italic;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .empty::before { content: "// "; color: var(--fg-dim); }
+
+  .toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--bg-deep);
+    border: 1px solid var(--fg);
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--fg);
+    box-shadow: var(--glow);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 220ms ease;
+    z-index: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.err { border-color: var(--danger); color: var(--danger); box-shadow: 0 0 6px rgba(255,59,59,0.5); }
+
+  /* ─── Stagger reveal ─────────────────────────────────────── */
+  .reveal { opacity: 0; transform: translateY(8px); }
+  .reveal.in { animation: reveal 0.45s ease forwards; }
+  @keyframes reveal { to { opacity: 1; transform: none; } }
+
+  /* responsive — collapse to single column under 880px */
+  @media (max-width: 880px) {
+    main { grid-template-columns: 1fr; }
+    .right-col { grid-template-rows: auto auto; }
+    .topbar { grid-template-columns: 1fr; gap: 10px; }
+    .stat-strip { flex-wrap: wrap; }
+    .brand { font-size: 40px; }
+  }
+
+  /* ─── Login overlay ──────────────────────────────────────── */
+  .login-overlay {
+    position: fixed; inset: 0;
+    z-index: 1500;
+    background: var(--bg-deep);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .login-overlay.hidden { display: none; }
+  .login-card {
+    border: 1px solid var(--fg);
+    box-shadow: var(--glow);
+    background: var(--bg);
+    padding: 28px 30px;
+    max-width: 440px; width: 100%;
+    position: relative;
+  }
+  .login-card h1 {
+    margin: 0 0 4px;
+    font-family: 'VT323', monospace;
+    font-size: 36px;
+    letter-spacing: 1px;
+    color: var(--fg);
+    text-shadow: var(--glow);
+  }
+  .login-card .sub {
+    color: var(--fg-dim);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+    border-bottom: 1px dashed var(--fg-faint);
+    padding-bottom: 14px;
+  }
+  .login-card label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin-bottom: 6px;
+  }
+  .login-card input {
+    width: 100%;
+    background: var(--bg-deep);
+    border: 1px solid var(--fg-faint);
+    color: var(--fg);
+    font: inherit;
+    padding: 10px 12px;
+    outline: 0;
+    text-shadow: 0 0 4px rgba(150,255,120,0.4);
+    transition: border-color 120ms;
+  }
+  .login-card input:focus {
+    border-color: var(--fg);
+    box-shadow: var(--glow);
+  }
+  .login-card button {
+    margin-top: 14px;
+    width: 100%;
+    background: var(--fg);
+    color: var(--bg-deep);
+    border: 0;
+    padding: 11px 14px;
+    font: inherit;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 120ms;
+  }
+  .login-card button:hover {
+    background: var(--accent);
+    box-shadow: var(--glow-amber);
+  }
+  .login-card button:disabled {
+    opacity: 0.4; cursor: not-allowed; background: var(--fg-faint);
+  }
+  .login-card .msg {
+    margin-top: 14px;
+    font-size: 11px;
+    color: var(--fg-dim);
+    letter-spacing: 1.5px;
+    min-height: 1em;
+  }
+  .login-card .msg.err { color: var(--danger); }
+  .login-card .msg.ok  { color: var(--success); }
+  .login-card .ascii {
+    color: var(--fg-faint);
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: pre;
+    margin-bottom: 12px;
+  }
+
+  /* ─── Status pill on topbar ──────────────────────────────── */
+  .conn-pill {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    border: 1px solid var(--fg-faint);
+    padding: 1px 6px;
+    margin-left: 8px;
+  }
+  .conn-pill.live   { color: var(--success); border-color: var(--success); }
+  .conn-pill.err    { color: var(--danger);  border-color: var(--danger); }
+</style>
+</head>
+<body class="crt">
+
+<div class="grid-bg"></div>
+<div class="noise"></div>
+
+<!-- ─── LOGIN OVERLAY ─────────────────────────────────────── -->
+<div class="login-overlay" id="login">
+  <div class="login-card">
+    <div class="ascii"> ┌─────────────────────────────────┐
+ │   secure shell · habbit.cli     │
+ └─────────────────────────────────┘</div>
+    <h1>AUTH REQUIRED</h1>
+    <div class="sub">// magic-link sign-in via supabase</div>
+    <label for="email-input">email</label>
+    <input id="email-input" type="email" autocomplete="email" placeholder="you@example.com" />
+    <button id="login-btn">SEND MAGIC LINK</button>
+    <div class="msg" id="login-msg"></div>
+  </div>
+</div>
+
+<div class="boot-overlay" id="boot">
+  <div>HABBIT.CLI v0.1.4 — initialising</div>
+  <div class="boot-bar"><i></i></div>
+  <div style="font-size:13px;color:var(--fg-dim);">loading habits from /usr/local/share/habbit.db</div>
+</div>
+
+<div class="shell">
+
+  <!-- ─── TOP BAR ─────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="brand reveal">
+      HABBIT<span class="blink">_</span>CLI<br>
+      <small>// terminal habit tracker</small>
+    </div>
+
+    <div class="meta reveal">
+      <div class="row"><span class="k">USER</span><span class="v" id="user">—</span></div>
+      <div class="row"><span class="k">DATE</span><span class="v" id="today">—</span></div>
+      <div class="row"><span class="k">TTY </span><span class="v">/dev/pts/0</span></div>
+      <div class="row"><span class="k">UPT </span><span class="v" id="uptime">0s</span></div>
+    </div>
+
+    <div class="stat-strip reveal">
+      <div class="stat">
+        <div class="label">habits</div>
+        <div class="value" id="stat-count">0</div>
+      </div>
+      <div class="stat amber">
+        <div class="label">best streak</div>
+        <div class="value" id="stat-best">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">today</div>
+        <div class="value" id="stat-today">0/0</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─── MAIN ────────────────────────────────────────────── -->
+  <main>
+    <section class="panel reveal">
+      <div class="panel-title">
+        <span>./habits — active tracking</span>
+        <span class="dots"><span></span><span></span><span></span></span>
+      </div>
+      <div class="panel-body">
+        <table class="habit-table" id="habit-table">
+          <thead>
+            <tr>
+              <th style="width: 38%">name</th>
+              <th>last 7 days</th>
+              <th style="width: 80px">streak</th>
+              <th style="width: 70px"></th>
+            </tr>
+          </thead>
+          <tbody id="habit-tbody"></tbody>
+        </table>
+        <div class="empty" id="empty-state">no habits tracked. type `add <name>` to begin</div>
+      </div>
+    </section>
+
+    <aside class="right-col">
+      <section class="panel reveal">
+        <div class="panel-title">
+          <span>./activity — last 30 days</span>
+          <span class="dots"><span></span><span></span><span></span></span>
+        </div>
+        <div class="panel-body">
+          <div class="heatmap" id="heatmap"></div>
+          <div class="heatmap-legend">
+            <span>less</span>
+            <span class="swatch" data-l="0"></span>
+            <span class="swatch" data-l="1" style="opacity:.45"></span>
+            <span class="swatch" data-l="2" style="opacity:.65;background:var(--fg-dim)"></span>
+            <span class="swatch" data-l="3" style="opacity:.85;background:var(--fg)"></span>
+            <span class="swatch" data-l="4" style="opacity:1;background:var(--fg);box-shadow:0 0 4px rgba(150,255,120,.6)"></span>
+            <span>more</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <div class="panel-title">
+          <span>./log — stdout stream</span>
+          <span class="dots"><span></span><span></span><span></span></span>
+        </div>
+        <div class="panel-body">
+          <ul class="log-list" id="log-list"></ul>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <!-- ─── COMMAND LINE ─────────────────────────────────────── -->
+  <footer>
+    <div class="cmdline">
+      <span class="prompt" id="prompt-glyph">tylerc26@habbit:~$</span>
+      <input id="cmd" type="text" autocomplete="off" spellcheck="false" autofocus />
+      <span class="caret"></span>
+    </div>
+    <div class="hint">
+      try: <kbd>add &lt;name&gt;</kbd> <kbd>done &lt;id&gt;</kbd> <kbd>undo &lt;id&gt;</kbd> <kbd>rm &lt;id&gt;</kbd> <kbd>help</kbd> <kbd>clear</kbd> <kbd>reset</kbd>
+      &nbsp;&nbsp;·&nbsp;&nbsp; arrow keys = history &nbsp;·&nbsp; tab = autocomplete
+    </div>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Supabase JS (UMD build) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<!-- Local config (gitignored). Copy config.example.js → config.js. -->
+<script src="config.js" onerror="window.__CONFIG_MISSING=true"></script>
+
+<script>
+/* ╔══════════════════════════════════════════════════════════╗
+   ║  HABBIT.CLI — terminal habit tracker                     ║
+   ║  data: Supabase (habits, checkins) · auth: magic link    ║
+   ╚══════════════════════════════════════════════════════════╝ */
+
+const BOOT_AT = Date.now();
+
+/* ─── Supabase client bootstrap ──────────────────────────── */
+const cfg = window.HABBIT_CONFIG || {};
+const sb = (cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY)
+  ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    })
+  : null;
+
+const state = {
+  habits:  [],   // [{ id, short_id, name, done: Set<iso> }]
+  log:     [],
+  history: [],
+  user:    null
+};
+
+/* ─── Date helpers ────────────────────────────────────────── */
+function isoDay(d) {
+  // local-day ISO (YYYY-MM-DD) — avoid UTC shift around midnight
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function addDays(d, n) { const c = new Date(d); c.setDate(c.getDate()+n); return c; }
+function fmtDate(d) {
+  return d.toLocaleDateString('en-US', { weekday:'short', year:'numeric', month:'short', day:'2-digit' }).toUpperCase();
+}
+function pad2(n) { return String(n).padStart(2,'0'); }
+
+/* ─── Streaks ─────────────────────────────────────────────── */
+function streakFor(habit) {
+  const set = habit.done; // Set<iso>
+  let s = 0;
+  let cur = new Date();
+  if (!set.has(isoDay(cur))) cur = addDays(cur, -1);
+  while (set.has(isoDay(cur))) { s++; cur = addDays(cur, -1); }
+  return s;
+}
+
+/* ─── Render ──────────────────────────────────────────────── */
+const $ = (s) => document.querySelector(s);
+const tbody = $('#habit-tbody');
+const empty = $('#empty-state');
+const logEl = $('#log-list');
+const heatEl = $('#heatmap');
+
+function render() {
+  // habit rows
+  tbody.innerHTML = '';
+  if (state.habits.length === 0) {
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    state.habits.forEach(h => tbody.appendChild(renderRow(h)));
+  }
+
+  // top stats
+  const today = isoDay(new Date());
+  const doneToday = state.habits.filter(h => h.done.has(today)).length;
+  const best = state.habits.reduce((m,h) => Math.max(m, streakFor(h)), 0);
+  $('#stat-count').textContent = pad2(state.habits.length);
+  $('#stat-best').textContent  = pad2(best);
+  $('#stat-today').textContent = `${pad2(doneToday)}/${pad2(state.habits.length)}`;
+
+  renderHeatmap();
+  renderLog();
+}
+
+function renderRow(h) {
+  const tr = document.createElement('tr');
+  tr.dataset.id = h.id;
+
+  // name
+  const nameTd = document.createElement('td');
+  nameTd.innerHTML = `<span class="habit-name"><span class="id">[${pad2(h.short_id)}]</span>${escape(h.name)}</span>`;
+  tr.appendChild(nameTd);
+
+  // 7-day grid
+  const dayTd = document.createElement('td');
+  const grid = document.createElement('div');
+  grid.className = 'week-grid';
+  const todayIso = isoDay(new Date());
+  const dayLabels = ['S','M','T','W','T','F','S'];
+  for (let i = 6; i >= 0; i--) {
+    const d = addDays(new Date(), -i);
+    const iso = isoDay(d);
+    const cell = document.createElement('button');
+    cell.className = 'day';
+    cell.title = iso;
+    if (h.done.has(iso)) cell.classList.add('done');
+    if (iso === todayIso) cell.classList.add('today');
+    if (i === 6) {
+      const lbl = document.createElement('span');
+      lbl.className = 'lbl';
+      lbl.textContent = dayLabels[d.getDay()];
+      cell.appendChild(lbl);
+    }
+    cell.addEventListener('click', () => toggleDay(h.id, iso));
+    grid.appendChild(cell);
+  }
+  dayTd.appendChild(grid);
+  tr.appendChild(dayTd);
+
+  // streak
+  const sTd = document.createElement('td');
+  const s = streakFor(h);
+  sTd.innerHTML = `<span class="streak">${s}</span>`;
+  tr.appendChild(sTd);
+
+  // actions
+  const aTd = document.createElement('td');
+  aTd.className = 'row-actions';
+  aTd.innerHTML = `<button data-act="rm">rm</button>`;
+  aTd.querySelector('button').addEventListener('click', () => removeHabit(h.id));
+  tr.appendChild(aTd);
+
+  return tr;
+}
+
+function renderHeatmap() {
+  heatEl.innerHTML = '';
+  const counts = {};
+  for (const h of state.habits) for (const d of h.done) counts[d] = (counts[d]||0)+1;
+  const max = Math.max(1, ...Object.values(counts));
+  for (let i = 29; i >= 0; i--) {
+    const iso = isoDay(addDays(new Date(), -i));
+    const c = counts[iso] || 0;
+    const lvl = c === 0 ? 0 : Math.min(4, Math.ceil((c/max)*4));
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.l = lvl;
+    cell.title = `${iso} — ${c} habit${c===1?'':'s'}`;
+    heatEl.appendChild(cell);
+  }
+}
+
+function findHabit(shortId) {
+  return state.habits.find(h => h.short_id === shortId);
+}
+
+function renderLog() {
+  logEl.innerHTML = '';
+  const entries = [...state.log].slice(-40).reverse();
+  for (const e of entries) {
+    const li = document.createElement('li');
+    const t = new Date(e.ts);
+    const tag = e.kind === 'err' ? 'err' : (e.kind === 'ok' ? 'ok' : '');
+    const tagText = e.kind === 'err' ? '[ERR]' : (e.kind === 'ok' ? '[OK ]' : '[--]');
+    li.innerHTML = `
+      <span class="ts">${pad2(t.getHours())}:${pad2(t.getMinutes())}:${pad2(t.getSeconds())}</span>
+      <span class="msg"><span class="tag ${tag}">${tagText}</span>${escape(e.msg)}${e.name ? ` <span class="name">${escape(e.name)}</span>` : ''}</span>
+    `;
+    logEl.appendChild(li);
+  }
+}
+
+/* ─── Mutations (Supabase-backed, optimistic) ────────────── */
+function logEvt(kind, msg, name='') {
+  state.log.push({ ts: Date.now(), kind, msg, name });
+  if (state.log.length > 200) state.log = state.log.slice(-200);
+}
+
+async function addHabit(name) {
+  if (!name) return err('add: missing <name>');
+  if (!sb || !state.user) return err('add: not connected');
+  const { data: shortIdData, error: shortErr } = await sb.rpc('next_short_id', { p_user: state.user.id });
+  if (shortErr) return err('add: ' + shortErr.message);
+  const short_id = shortIdData;
+  const { data, error } = await sb
+    .from('habits')
+    .insert({ name, short_id, user_id: state.user.id })
+    .select()
+    .single();
+  if (error) return err('add: ' + error.message);
+  state.habits.push({ id: data.id, short_id: data.short_id, name: data.name, done: new Set() });
+  state.habits.sort((a,b) => a.short_id - b.short_id);
+  logEvt('ok', 'habit created', name);
+  toast(`+ added "${name}"`);
+  render();
+}
+
+async function removeHabit(id) {
+  const i = state.habits.findIndex(h => h.id === id);
+  if (i === -1) return err(`rm: id not found`);
+  const h = state.habits[i];
+  const { error } = await sb.from('habits').delete().eq('id', id);
+  if (error) return err('rm: ' + error.message);
+  state.habits.splice(i, 1);
+  logEvt('err', 'habit deleted', h.name);
+  toast(`- removed "${h.name}"`, 'err');
+  render();
+}
+
+async function markDone(shortId) {
+  const h = findHabit(shortId);
+  if (!h) return err(`done: id ${shortId} not found`);
+  const today = isoDay(new Date());
+  if (h.done.has(today)) return err(`done: "${h.name}" already checked today`);
+  await toggleDay(h.id, today);
+}
+
+async function undoToday(shortId) {
+  const h = findHabit(shortId);
+  if (!h) return err(`undo: id ${shortId} not found`);
+  const today = isoDay(new Date());
+  if (!h.done.has(today)) return err(`undo: "${h.name}" wasn't checked today`);
+  await toggleDay(h.id, today);
+}
+
+async function toggleDay(id, iso) {
+  const h = state.habits.find(x => x.id === id);
+  if (!h) return;
+  const wasDone = h.done.has(iso);
+  // optimistic
+  if (wasDone) h.done.delete(iso); else h.done.add(iso);
+  render();
+
+  if (wasDone) {
+    const { error } = await sb.from('checkins').delete()
+      .eq('habit_id', id).eq('day', iso);
+    if (error) { h.done.add(iso); render(); return err('toggle: ' + error.message); }
+    logEvt('err', `uncheck ${iso}`, h.name);
+  } else {
+    const { error } = await sb.from('checkins')
+      .insert({ habit_id: id, user_id: state.user.id, day: iso });
+    if (error) { h.done.delete(iso); render(); return err('toggle: ' + error.message); }
+    logEvt('ok', `check ${iso}`, h.name);
+    if (iso === isoDay(new Date())) toast(`✓ ${h.name}`);
+  }
+  render();
+}
+
+/* ─── Command parser ─────────────────────────────────────── */
+const cmdInput = $('#cmd');
+let histIdx = -1;
+
+function err(m) { logEvt('err', m); toast(m, 'err'); render(); }
+
+function exec(line) {
+  const trimmed = line.trim();
+  if (!trimmed) return;
+  state.history.push(trimmed);
+  if (state.history.length > 100) state.history = state.history.slice(-100);
+  histIdx = state.history.length;
+
+  const [cmd, ...rest] = trimmed.split(/\s+/);
+  const arg  = rest.join(' ');
+  const argId = parseInt(rest[0], 10);
+
+  switch (cmd.toLowerCase()) {
+    case 'add':   addHabit(arg);                                              break;
+    case 'done':
+    case 'check': markDone(argId);                                            break;
+    case 'undo':  undoToday(argId);                                           break;
+    case 'rm':
+    case 'del':   removeHabit(argId);                                         break;
+    case 'ls':
+    case 'list':  toast(`${state.habits.length} habits tracked`);             break;
+    case 'help':  showHelp();                                                 break;
+    case 'clear': state.log = []; save(); render(); toast('log cleared');     break;
+    case 'reset':
+      if (rest[0] === '--force') wipeAll();
+      else err('reset: pass --force to confirm (deletes all habits)');
+      break;
+    case 'logout':
+    case 'exit':  signOut();                                                  break;
+    case 'whoami': toast(state.user ? state.user.email : 'not signed in');    break;
+    case 'sync':  loadFromSupabase().then(() => toast('synced'));             break;
+    default:      err(`${cmd}: command not found. type \`help\``);
+  }
+}
+
+async function wipeAll() {
+  if (!sb || !state.user) return;
+  const { error } = await sb.from('habits').delete().eq('user_id', state.user.id);
+  if (error) return err('reset: ' + error.message);
+  state.habits = [];
+  state.log = [];
+  toast('state reset'); render();
+}
+
+function showHelp() {
+  const lines = [
+    'add <name>      — create a new habit',
+    'done <id>       — mark today as done',
+    'undo <id>       — uncheck today',
+    'rm <id>         — delete a habit',
+    'ls              — list count',
+    'sync            — pull fresh data from supabase',
+    'logout          — sign out of this device',
+    'clear           — clear log',
+    'reset --force   — wipe all habits (server-side)'
+  ];
+  for (const l of lines) logEvt('', l);
+  render();
+  toast('help printed to log');
+}
+
+cmdInput.addEventListener('input', () => {
+  const pos = cmdInput.selectionStart;
+  cmdInput.value = cmdInput.value.toUpperCase();
+  cmdInput.setSelectionRange(pos, pos);
+});
+
+cmdInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    exec(cmdInput.value);
+    cmdInput.value = '';
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (state.history.length === 0) return;
+    histIdx = Math.max(0, histIdx - 1);
+    cmdInput.value = state.history[histIdx] || '';
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (state.history.length === 0) return;
+    histIdx = Math.min(state.history.length, histIdx + 1);
+    cmdInput.value = state.history[histIdx] || '';
+  } else if (e.key === 'Tab') {
+    e.preventDefault();
+    const cmds = ['add','done','undo','rm','ls','help','clear','reset','whoami'];
+    const v = cmdInput.value;
+    const m = cmds.find(c => c.startsWith(v));
+    if (m) cmdInput.value = m + ' ';
+  } else if (e.key === 'l' && e.ctrlKey) {
+    e.preventDefault();
+    state.log = []; save(); render();
+  }
+});
+
+// keep input focused when clicking anywhere outside a button/cell
+document.addEventListener('click', (e) => {
+  if (e.target.closest('button, .day, input, a')) return;
+  cmdInput.focus();
+});
+
+/* ─── Toast ───────────────────────────────────────────────── */
+let toastTimer;
+function toast(msg, kind='') {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + kind;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = 'toast ' + kind; }, 1700);
+}
+
+function escape(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ─── Clock + uptime ─────────────────────────────────────── */
+function tickClock() {
+  $('#today').textContent = fmtDate(new Date()) + ' · ' + new Date().toLocaleTimeString('en-GB');
+  const up = Math.floor((Date.now() - BOOT_AT) / 1000);
+  const h = Math.floor(up/3600), m = Math.floor((up%3600)/60), s = up%60;
+  $('#uptime').textContent = (h ? h+'h ' : '') + (m ? m+'m ' : '') + s + 's';
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+/* ─── Auth ───────────────────────────────────────────────── */
+const loginEl   = $('#login');
+const emailEl   = $('#email-input');
+const loginBtn  = $('#login-btn');
+const loginMsg  = $('#login-msg');
+
+function setLoginMsg(text, kind='') {
+  loginMsg.textContent = text;
+  loginMsg.className = 'msg ' + kind;
+}
+
+function showLogin() { loginEl.classList.remove('hidden'); }
+function hideLogin() { loginEl.classList.add('hidden'); }
+
+async function sendMagicLink() {
+  const email = emailEl.value.trim().toLowerCase();
+  if (!email || !/.+@.+\..+/.test(email)) { setLoginMsg('invalid email', 'err'); return; }
+  if (cfg.ALLOWED_EMAIL && email !== cfg.ALLOWED_EMAIL.toLowerCase()) {
+    setLoginMsg('access denied: email not authorised', 'err'); return;
+  }
+  loginBtn.disabled = true;
+  setLoginMsg('transmitting...', '');
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin + window.location.pathname }
+  });
+  loginBtn.disabled = false;
+  if (error) { setLoginMsg(error.message, 'err'); return; }
+  setLoginMsg(`magic link sent to ${email} → check inbox`, 'ok');
+}
+
+async function signOut() {
+  if (!sb) return;
+  await sb.auth.signOut();
+  state.user = null;
+  state.habits = [];
+  state.log = [];
+  render();
+  showLogin();
+  toast('signed out');
+}
+
+loginBtn.addEventListener('click', sendMagicLink);
+emailEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMagicLink(); });
+
+/* ─── Data loading ───────────────────────────────────────── */
+async function loadFromSupabase() {
+  if (!sb || !state.user) return;
+  const [{ data: habits, error: hErr }, { data: checks, error: cErr }] = await Promise.all([
+    sb.from('habits').select('id, short_id, name').order('short_id', { ascending: true }),
+    sb.from('checkins').select('habit_id, day')
+  ]);
+  if (hErr) return err('load habits: ' + hErr.message);
+  if (cErr) return err('load checkins: ' + cErr.message);
+  const byHabit = new Map();
+  for (const h of habits) byHabit.set(h.id, new Set());
+  for (const c of checks) {
+    const set = byHabit.get(c.habit_id);
+    if (set) set.add(c.day);
+  }
+  state.habits = habits.map(h => ({
+    id: h.id, short_id: h.short_id, name: h.name, done: byHabit.get(h.id) || new Set()
+  }));
+  render();
+}
+
+async function onAuthed(session) {
+  state.user = session.user;
+  $('#user').textContent = session.user.email;
+  hideLogin();
+  logEvt('ok', 'session restored');
+  await loadFromSupabase();
+  logEvt('ok', `loaded ${state.habits.length} habits`);
+  render();
+}
+
+/* ─── Boot sequence ──────────────────────────────────────── */
+async function boot() {
+  // wait for splash
+  await new Promise(r => setTimeout(r, 1100));
+  document.getElementById('boot').classList.add('hidden');
+  document.querySelectorAll('.reveal').forEach((el, i) => {
+    setTimeout(() => el.classList.add('in'), 60 * i);
+  });
+
+  if (window.__CONFIG_MISSING || !sb) {
+    showLogin();
+    setLoginMsg('config.js missing — copy config.example.js → config.js and fill in supabase keys', 'err');
+    loginBtn.disabled = true;
+    return;
+  }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    await onAuthed(session);
+    cmdInput.focus();
+  } else {
+    showLogin();
+    emailEl.focus();
+  }
+
+  sb.auth.onAuthStateChange((_event, sess) => {
+    if (sess && (!state.user || state.user.id !== sess.user.id)) {
+      onAuthed(sess);
+    }
+  });
+}
+
+window.addEventListener('load', boot);
+
+render();
+</script>
+</body>
+</html>
