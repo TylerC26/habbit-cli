@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;0,800;1,400&family=VT323&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root {
     --bg:        #050a06;
@@ -277,15 +278,6 @@
     margin-right: 8px;
     font-size: 11px;
   }
-  .habit-tag {
-    display: inline-block;
-    border: 1px solid var(--fg-faint);
-    padding: 1px 6px;
-    font-size: 10px;
-    letter-spacing: 1px;
-    color: var(--fg-dim);
-    text-transform: uppercase;
-  }
   .week-grid {
     display: grid;
     grid-template-columns: repeat(7, 16px);
@@ -522,6 +514,100 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.err { border-color: var(--danger); color: var(--danger); box-shadow: 0 0 6px rgba(255,59,59,0.5); }
 
+  /* ─── Sync pill ──────────────────────────────────────────── */
+  .sync-pill {
+    cursor: pointer;
+    border: 1px solid var(--fg-faint);
+    padding: 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 10px;
+  }
+  .sync-pill[data-state="online"]     { color: var(--success); border-color: var(--success); text-shadow: 0 0 4px rgba(0,255,136,0.5); }
+  .sync-pill[data-state="syncing"],
+  .sync-pill[data-state="connecting"] { color: var(--accent);  border-color: var(--accent);  text-shadow: var(--glow-amber); }
+  .sync-pill[data-state="error"]      { color: var(--danger);  border-color: var(--danger);  text-shadow: 0 0 4px rgba(255,59,59,0.5); }
+  .sync-pill[data-state="offline"]    { color: var(--fg-faint); }
+
+  /* ─── Modal ──────────────────────────────────────────────── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(2,5,3,0.78);
+    z-index: 1500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--bg-deep);
+    border: 1px solid var(--fg);
+    box-shadow: var(--glow);
+    width: min(520px, 92vw);
+    padding: 18px 20px;
+    color: var(--fg);
+    font-size: 12px;
+    letter-spacing: 0.5px;
+  }
+  .modal h2 {
+    margin: 0 0 4px;
+    font-family: 'VT323', monospace;
+    font-size: 26px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-shadow: var(--glow-amber);
+  }
+  .modal p {
+    margin: 0 0 14px;
+    color: var(--fg-dim);
+    font-size: 11px;
+    line-height: 1.55;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+  .modal label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--fg-dim);
+    text-transform: uppercase;
+    margin: 10px 0 4px;
+  }
+  .modal input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--fg-faint);
+    color: var(--fg);
+    font: inherit;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 6px 8px;
+    outline: 0;
+  }
+  .modal input:focus { border-color: var(--fg); box-shadow: 0 0 0 1px var(--fg-faint); }
+  .modal-actions {
+    display: flex; justify-content: flex-end; gap: 8px;
+    margin-top: 16px;
+  }
+  .modal-actions button {
+    background: transparent;
+    border: 1px solid var(--fg-faint);
+    color: var(--fg-dim);
+    font: inherit;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .modal-actions button.primary {
+    border-color: var(--fg);
+    color: var(--fg);
+    text-shadow: 0 0 4px rgba(150,255,120,0.5);
+  }
+  .modal-actions button.primary:hover { background: rgba(150,255,120,0.08); }
+  .modal-actions button.danger:hover  { border-color: var(--danger); color: var(--danger); }
+
   /* ─── Stagger reveal ─────────────────────────────────────── */
   .reveal { opacity: 0; transform: translateY(8px); }
   .reveal.in { animation: reveal 0.45s ease forwards; }
@@ -535,135 +621,12 @@
     .stat-strip { flex-wrap: wrap; }
     .brand { font-size: 40px; }
   }
-
-  /* ─── Login overlay ──────────────────────────────────────── */
-  .login-overlay {
-    position: fixed; inset: 0;
-    z-index: 1500;
-    background: var(--bg-deep);
-    display: flex; align-items: center; justify-content: center;
-    padding: 24px;
-  }
-  .login-overlay.hidden { display: none; }
-  .login-card {
-    border: 1px solid var(--fg);
-    box-shadow: var(--glow);
-    background: var(--bg);
-    padding: 28px 30px;
-    max-width: 440px; width: 100%;
-    position: relative;
-  }
-  .login-card h1 {
-    margin: 0 0 4px;
-    font-family: 'VT323', monospace;
-    font-size: 36px;
-    letter-spacing: 1px;
-    color: var(--fg);
-    text-shadow: var(--glow);
-  }
-  .login-card .sub {
-    color: var(--fg-dim);
-    font-size: 11px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 22px;
-    border-bottom: 1px dashed var(--fg-faint);
-    padding-bottom: 14px;
-  }
-  .login-card label {
-    display: block;
-    font-size: 10px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--fg-dim);
-    margin-bottom: 6px;
-  }
-  .login-card input {
-    width: 100%;
-    background: var(--bg-deep);
-    border: 1px solid var(--fg-faint);
-    color: var(--fg);
-    font: inherit;
-    padding: 10px 12px;
-    outline: 0;
-    text-shadow: 0 0 4px rgba(150,255,120,0.4);
-    transition: border-color 120ms;
-  }
-  .login-card input:focus {
-    border-color: var(--fg);
-    box-shadow: var(--glow);
-  }
-  .login-card button {
-    margin-top: 14px;
-    width: 100%;
-    background: var(--fg);
-    color: var(--bg-deep);
-    border: 0;
-    padding: 11px 14px;
-    font: inherit;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 120ms;
-  }
-  .login-card button:hover {
-    background: var(--accent);
-    box-shadow: var(--glow-amber);
-  }
-  .login-card button:disabled {
-    opacity: 0.4; cursor: not-allowed; background: var(--fg-faint);
-  }
-  .login-card .msg {
-    margin-top: 14px;
-    font-size: 11px;
-    color: var(--fg-dim);
-    letter-spacing: 1.5px;
-    min-height: 1em;
-  }
-  .login-card .msg.err { color: var(--danger); }
-  .login-card .msg.ok  { color: var(--success); }
-  .login-card .ascii {
-    color: var(--fg-faint);
-    font-size: 10px;
-    line-height: 1.2;
-    white-space: pre;
-    margin-bottom: 12px;
-  }
-
-  /* ─── Status pill on topbar ──────────────────────────────── */
-  .conn-pill {
-    font-size: 9px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--fg-dim);
-    border: 1px solid var(--fg-faint);
-    padding: 1px 6px;
-    margin-left: 8px;
-  }
-  .conn-pill.live   { color: var(--success); border-color: var(--success); }
-  .conn-pill.err    { color: var(--danger);  border-color: var(--danger); }
 </style>
 </head>
 <body class="crt">
 
 <div class="grid-bg"></div>
 <div class="noise"></div>
-
-<!-- ─── LOGIN OVERLAY ─────────────────────────────────────── -->
-<div class="login-overlay" id="login">
-  <div class="login-card">
-    <div class="ascii"> ┌─────────────────────────────────┐
- │   secure shell · habbit.cli     │
- └─────────────────────────────────┘</div>
-    <h1>AUTH REQUIRED</h1>
-    <div class="sub">// magic-link sign-in via supabase</div>
-    <label for="email-input">email</label>
-    <input id="email-input" type="email" autocomplete="email" placeholder="you@example.com" />
-    <button id="login-btn">SEND MAGIC LINK</button>
-    <div class="msg" id="login-msg"></div>
-  </div>
-</div>
 
 <div class="boot-overlay" id="boot">
   <div>HABBIT.CLI v0.1.4 — initialising</div>
@@ -681,10 +644,11 @@
     </div>
 
     <div class="meta reveal">
-      <div class="row"><span class="k">USER</span><span class="v" id="user">—</span></div>
+      <div class="row"><span class="k">USER</span><span class="v" id="user">tylerc26@local</span></div>
       <div class="row"><span class="k">DATE</span><span class="v" id="today">—</span></div>
       <div class="row"><span class="k">TTY </span><span class="v">/dev/pts/0</span></div>
       <div class="row"><span class="k">UPT </span><span class="v" id="uptime">0s</span></div>
+      <div class="row"><span class="k">SYNC</span><span class="v sync-pill" id="sync-pill" data-state="offline" title="type `sync` to configure">offline</span></div>
     </div>
 
     <div class="stat-strip reveal">
@@ -766,41 +730,70 @@
       <span class="caret"></span>
     </div>
     <div class="hint">
-      try: <kbd>add &lt;name&gt;</kbd> <kbd>done &lt;id&gt;</kbd> <kbd>undo &lt;id&gt;</kbd> <kbd>rm &lt;id&gt;</kbd> <kbd>help</kbd> <kbd>clear</kbd> <kbd>reset</kbd>
+      try: <kbd>add &lt;name&gt;</kbd> <kbd>done &lt;id&gt;</kbd> <kbd>undo &lt;id&gt;</kbd> <kbd>rm &lt;id&gt;</kbd> <kbd>sync</kbd> <kbd>help</kbd> <kbd>clear</kbd> <kbd>reset</kbd>
       &nbsp;&nbsp;·&nbsp;&nbsp; arrow keys = history &nbsp;·&nbsp; tab = autocomplete
     </div>
   </footer>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="modal-backdrop" id="sync-modal">
+  <div class="modal">
+    <h2>SYNC :: SUPABASE</h2>
+    <p>// connect to supabase to back up habits across devices.<br>
+       paste your project url + anon key. enable anonymous sign-ins under auth → providers, and run supabase/schema.sql once.</p>
+    <label for="sync-url">PROJECT URL</label>
+    <input id="sync-url" type="text" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off" spellcheck="false">
+    <label for="sync-key">ANON KEY</label>
+    <input id="sync-key" type="text" placeholder="eyJhbGciOi..." autocomplete="off" spellcheck="false">
+    <div class="modal-actions">
+      <button id="sync-disconnect" class="danger">disconnect</button>
+      <button id="sync-cancel">cancel</button>
+      <button id="sync-save" class="primary">connect</button>
+    </div>
+  </div>
+</div>
 
-<!-- Supabase JS (UMD build) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<!-- Local config (gitignored). Copy config.example.js → config.js. -->
-<script src="config.js" onerror="window.__CONFIG_MISSING=true"></script>
+<div class="toast" id="toast"></div>
 
 <script>
 /* ╔══════════════════════════════════════════════════════════╗
    ║  HABBIT.CLI — terminal habit tracker                     ║
-   ║  data: Supabase (habits, checkins) · auth: magic link    ║
+   ║  state lives in localStorage under key "habbit.cli.v1"   ║
    ╚══════════════════════════════════════════════════════════╝ */
 
-const BOOT_AT = Date.now();
+const STORAGE_KEY = 'habbit.cli.v1';
+const BOOT_AT     = Date.now();
 
-/* ─── Supabase client bootstrap ──────────────────────────── */
-const cfg = window.HABBIT_CONFIG || {};
-const sb = (cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY)
-  ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-    })
-  : null;
+const state = load();
 
-const state = {
-  habits:  [],   // [{ id, short_id, name, done: Set<iso> }]
-  log:     [],
-  history: [],
-  user:    null
-};
+/* ─── Persistence ─────────────────────────────────────────── */
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (_) {}
+  return seed();
+}
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+function seed() {
+  const today = isoDay(new Date());
+  const offset = (n) => isoDay(addDays(new Date(), -n));
+  return {
+    habits: [
+      { id: 1, name: 'morning pages',  done: [offset(1), offset(2), offset(4), offset(5), offset(6)] },
+      { id: 2, name: 'lift heavy',     done: [today, offset(2), offset(4), offset(7)] },
+      { id: 3, name: 'no doomscroll',  done: [offset(0), offset(1), offset(2), offset(3), offset(5), offset(6)] },
+      { id: 4, name: 'read 30m',       done: [offset(1), offset(3), offset(5), offset(7), offset(9)] }
+    ],
+    log: [
+      { ts: Date.now() - 1000 * 60 * 60 * 5, kind: 'ok',  msg: 'session restored', name: '' },
+      { ts: Date.now() - 1000 * 60 * 60 * 6, kind: 'ok',  msg: 'check', name: 'morning pages' }
+    ],
+    nextId: 5,
+    history: []
+  };
+}
 
 /* ─── Date helpers ────────────────────────────────────────── */
 function isoDay(d) {
@@ -816,7 +809,7 @@ function pad2(n) { return String(n).padStart(2,'0'); }
 
 /* ─── Streaks ─────────────────────────────────────────────── */
 function streakFor(habit) {
-  const set = habit.done; // Set<iso>
+  const set = new Set(habit.done);
   let s = 0;
   let cur = new Date();
   if (!set.has(isoDay(cur))) cur = addDays(cur, -1);
@@ -832,7 +825,6 @@ const logEl = $('#log-list');
 const heatEl = $('#heatmap');
 
 function render() {
-  // habit rows
   tbody.innerHTML = '';
   if (state.habits.length === 0) {
     empty.style.display = 'block';
@@ -841,9 +833,8 @@ function render() {
     state.habits.forEach(h => tbody.appendChild(renderRow(h)));
   }
 
-  // top stats
   const today = isoDay(new Date());
-  const doneToday = state.habits.filter(h => h.done.has(today)).length;
+  const doneToday = state.habits.filter(h => h.done.includes(today)).length;
   const best = state.habits.reduce((m,h) => Math.max(m, streakFor(h)), 0);
   $('#stat-count').textContent = pad2(state.habits.length);
   $('#stat-best').textContent  = pad2(best);
@@ -857,12 +848,10 @@ function renderRow(h) {
   const tr = document.createElement('tr');
   tr.dataset.id = h.id;
 
-  // name
   const nameTd = document.createElement('td');
-  nameTd.innerHTML = `<span class="habit-name"><span class="id">[${pad2(h.short_id)}]</span>${escape(h.name)}</span>`;
+  nameTd.innerHTML = `<span class="habit-name"><span class="id">[${pad2(h.id)}]</span>${escape(h.name)}</span>`;
   tr.appendChild(nameTd);
 
-  // 7-day grid
   const dayTd = document.createElement('td');
   const grid = document.createElement('div');
   grid.className = 'week-grid';
@@ -874,7 +863,7 @@ function renderRow(h) {
     const cell = document.createElement('button');
     cell.className = 'day';
     cell.title = iso;
-    if (h.done.has(iso)) cell.classList.add('done');
+    if (h.done.includes(iso)) cell.classList.add('done');
     if (iso === todayIso) cell.classList.add('today');
     if (i === 6) {
       const lbl = document.createElement('span');
@@ -888,13 +877,10 @@ function renderRow(h) {
   dayTd.appendChild(grid);
   tr.appendChild(dayTd);
 
-  // streak
   const sTd = document.createElement('td');
-  const s = streakFor(h);
-  sTd.innerHTML = `<span class="streak">${s}</span>`;
+  sTd.innerHTML = `<span class="streak">${streakFor(h)}</span>`;
   tr.appendChild(sTd);
 
-  // actions
   const aTd = document.createElement('td');
   aTd.className = 'row-actions';
   aTd.innerHTML = `<button data-act="rm">rm</button>`;
@@ -921,10 +907,6 @@ function renderHeatmap() {
   }
 }
 
-function findHabit(shortId) {
-  return state.habits.find(h => h.short_id === shortId);
-}
-
 function renderLog() {
   logEl.innerHTML = '';
   const entries = [...state.log].slice(-40).reverse();
@@ -941,80 +923,64 @@ function renderLog() {
   }
 }
 
-/* ─── Mutations (Supabase-backed, optimistic) ────────────── */
+/* ─── Mutations ──────────────────────────────────────────── */
 function logEvt(kind, msg, name='') {
   state.log.push({ ts: Date.now(), kind, msg, name });
   if (state.log.length > 200) state.log = state.log.slice(-200);
 }
 
-async function addHabit(name) {
+function addHabit(name) {
   if (!name) return err('add: missing <name>');
-  if (!sb || !state.user) return err('add: not connected');
-  const { data: shortIdData, error: shortErr } = await sb.rpc('next_short_id', { p_user: state.user.id });
-  if (shortErr) return err('add: ' + shortErr.message);
-  const short_id = shortIdData;
-  const { data, error } = await sb
-    .from('habits')
-    .insert({ name, short_id, user_id: state.user.id })
-    .select()
-    .single();
-  if (error) return err('add: ' + error.message);
-  state.habits.push({ id: data.id, short_id: data.short_id, name: data.name, done: new Set() });
-  state.habits.sort((a,b) => a.short_id - b.short_id);
+  const id = state.nextId++;
+  state.habits.push({ id, name, done: [] });
   logEvt('ok', 'habit created', name);
   toast(`+ added "${name}"`);
-  render();
+  save(); render();
 }
 
-async function removeHabit(id) {
+function removeHabit(id) {
   const i = state.habits.findIndex(h => h.id === id);
-  if (i === -1) return err(`rm: id not found`);
-  const h = state.habits[i];
-  const { error } = await sb.from('habits').delete().eq('id', id);
-  if (error) return err('rm: ' + error.message);
-  state.habits.splice(i, 1);
+  if (i === -1) return err(`rm: id ${id} not found`);
+  const [h] = state.habits.splice(i, 1);
   logEvt('err', 'habit deleted', h.name);
   toast(`- removed "${h.name}"`, 'err');
-  render();
+  save(); render();
 }
 
-async function markDone(shortId) {
-  const h = findHabit(shortId);
-  if (!h) return err(`done: id ${shortId} not found`);
+function markDone(id) {
+  const h = state.habits.find(h => h.id === id);
+  if (!h) return err(`done: id ${id} not found`);
   const today = isoDay(new Date());
-  if (h.done.has(today)) return err(`done: "${h.name}" already checked today`);
-  await toggleDay(h.id, today);
+  if (h.done.includes(today)) return err(`done: "${h.name}" already checked today`);
+  h.done.push(today);
+  logEvt('ok', 'check', h.name);
+  toast(`✓ ${h.name}`);
+  save(); render();
 }
 
-async function undoToday(shortId) {
-  const h = findHabit(shortId);
-  if (!h) return err(`undo: id ${shortId} not found`);
+function undoToday(id) {
+  const h = state.habits.find(h => h.id === id);
+  if (!h) return err(`undo: id ${id} not found`);
   const today = isoDay(new Date());
-  if (!h.done.has(today)) return err(`undo: "${h.name}" wasn't checked today`);
-  await toggleDay(h.id, today);
+  const before = h.done.length;
+  h.done = h.done.filter(d => d !== today);
+  if (h.done.length === before) return err(`undo: "${h.name}" wasn't checked today`);
+  logEvt('err', 'uncheck', h.name);
+  toast(`× undid "${h.name}"`);
+  save(); render();
 }
 
-async function toggleDay(id, iso) {
-  const h = state.habits.find(x => x.id === id);
+function toggleDay(id, iso) {
+  const h = state.habits.find(h => h.id === id);
   if (!h) return;
-  const wasDone = h.done.has(iso);
-  // optimistic
-  if (wasDone) h.done.delete(iso); else h.done.add(iso);
-  render();
-
-  if (wasDone) {
-    const { error } = await sb.from('checkins').delete()
-      .eq('habit_id', id).eq('day', iso);
-    if (error) { h.done.add(iso); render(); return err('toggle: ' + error.message); }
+  if (h.done.includes(iso)) {
+    h.done = h.done.filter(d => d !== iso);
     logEvt('err', `uncheck ${iso}`, h.name);
   } else {
-    const { error } = await sb.from('checkins')
-      .insert({ habit_id: id, user_id: state.user.id, day: iso });
-    if (error) { h.done.delete(iso); render(); return err('toggle: ' + error.message); }
+    h.done.push(iso);
     logEvt('ok', `check ${iso}`, h.name);
-    if (iso === isoDay(new Date())) toast(`✓ ${h.name}`);
   }
-  render();
+  save(); render();
 }
 
 /* ─── Command parser ─────────────────────────────────────── */
@@ -1046,24 +1012,21 @@ function exec(line) {
     case 'help':  showHelp();                                                 break;
     case 'clear': state.log = []; save(); render(); toast('log cleared');     break;
     case 'reset':
-      if (rest[0] === '--force') wipeAll();
-      else err('reset: pass --force to confirm (deletes all habits)');
+      if (rest[0] === '--force') {
+        localStorage.removeItem(STORAGE_KEY);
+        Object.assign(state, seed());
+        save(); render(); toast('state reset');
+      } else err('reset: pass --force to confirm');
       break;
-    case 'logout':
-    case 'exit':  signOut();                                                  break;
-    case 'whoami': toast(state.user ? state.user.email : 'not signed in');    break;
-    case 'sync':  loadFromSupabase().then(() => toast('synced'));             break;
+    case 'whoami': toast('tylerc26@habbit.cli');                              break;
+    case 'sync':
+      if (rest[0] === 'pull')        { sbPull().then(render); }
+      else if (rest[0] === 'off')    { sbDisconnect(); }
+      else                            { openSyncModal(); }
+      break;
     default:      err(`${cmd}: command not found. type \`help\``);
   }
-}
-
-async function wipeAll() {
-  if (!sb || !state.user) return;
-  const { error } = await sb.from('habits').delete().eq('user_id', state.user.id);
-  if (error) return err('reset: ' + error.message);
-  state.habits = [];
-  state.log = [];
-  toast('state reset'); render();
+  save();
 }
 
 function showHelp() {
@@ -1073,10 +1036,11 @@ function showHelp() {
     'undo <id>       — uncheck today',
     'rm <id>         — delete a habit',
     'ls              — list count',
-    'sync            — pull fresh data from supabase',
-    'logout          — sign out of this device',
     'clear           — clear log',
-    'reset --force   — wipe all habits (server-side)'
+    'reset --force   — wipe all data',
+    'sync            — configure supabase backend',
+    'sync pull       — re-pull from supabase',
+    'sync off        — disconnect supabase'
   ];
   for (const l of lines) logEvt('', l);
   render();
@@ -1105,17 +1069,16 @@ cmdInput.addEventListener('keydown', (e) => {
     cmdInput.value = state.history[histIdx] || '';
   } else if (e.key === 'Tab') {
     e.preventDefault();
-    const cmds = ['add','done','undo','rm','ls','help','clear','reset','whoami'];
-    const v = cmdInput.value;
+    const cmds = ['add','done','undo','rm','ls','help','clear','reset','whoami','sync'];
+    const v = cmdInput.value.toLowerCase();
     const m = cmds.find(c => c.startsWith(v));
-    if (m) cmdInput.value = m + ' ';
+    if (m) cmdInput.value = (m + ' ').toUpperCase();
   } else if (e.key === 'l' && e.ctrlKey) {
     e.preventDefault();
     state.log = []; save(); render();
   }
 });
 
-// keep input focused when clicking anywhere outside a button/cell
 document.addEventListener('click', (e) => {
   if (e.target.closest('button, .day, input, a')) return;
   cmdInput.focus();
@@ -1143,117 +1106,246 @@ function tickClock() {
 tickClock();
 setInterval(tickClock, 1000);
 
-/* ─── Auth ───────────────────────────────────────────────── */
-const loginEl   = $('#login');
-const emailEl   = $('#email-input');
-const loginBtn  = $('#login-btn');
-const loginMsg  = $('#login-msg');
-
-function setLoginMsg(text, kind='') {
-  loginMsg.textContent = text;
-  loginMsg.className = 'msg ' + kind;
-}
-
-function showLogin() { loginEl.classList.remove('hidden'); }
-function hideLogin() { loginEl.classList.add('hidden'); }
-
-async function sendMagicLink() {
-  const email = emailEl.value.trim().toLowerCase();
-  if (!email || !/.+@.+\..+/.test(email)) { setLoginMsg('invalid email', 'err'); return; }
-  if (cfg.ALLOWED_EMAIL && email !== cfg.ALLOWED_EMAIL.toLowerCase()) {
-    setLoginMsg('access denied: email not authorised', 'err'); return;
-  }
-  loginBtn.disabled = true;
-  setLoginMsg('transmitting...', '');
-  const { error } = await sb.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: window.location.origin + window.location.pathname }
-  });
-  loginBtn.disabled = false;
-  if (error) { setLoginMsg(error.message, 'err'); return; }
-  setLoginMsg(`magic link sent to ${email} → check inbox`, 'ok');
-}
-
-async function signOut() {
-  if (!sb) return;
-  await sb.auth.signOut();
-  state.user = null;
-  state.habits = [];
-  state.log = [];
-  render();
-  showLogin();
-  toast('signed out');
-}
-
-loginBtn.addEventListener('click', sendMagicLink);
-emailEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMagicLink(); });
-
-/* ─── Data loading ───────────────────────────────────────── */
-async function loadFromSupabase() {
-  if (!sb || !state.user) return;
-  const [{ data: habits, error: hErr }, { data: checks, error: cErr }] = await Promise.all([
-    sb.from('habits').select('id, short_id, name').order('short_id', { ascending: true }),
-    sb.from('checkins').select('habit_id, day')
-  ]);
-  if (hErr) return err('load habits: ' + hErr.message);
-  if (cErr) return err('load checkins: ' + cErr.message);
-  const byHabit = new Map();
-  for (const h of habits) byHabit.set(h.id, new Set());
-  for (const c of checks) {
-    const set = byHabit.get(c.habit_id);
-    if (set) set.add(c.day);
-  }
-  state.habits = habits.map(h => ({
-    id: h.id, short_id: h.short_id, name: h.name, done: byHabit.get(h.id) || new Set()
-  }));
-  render();
-}
-
-async function onAuthed(session) {
-  state.user = session.user;
-  $('#user').textContent = session.user.email;
-  hideLogin();
-  logEvt('ok', 'session restored');
-  await loadFromSupabase();
-  logEvt('ok', `loaded ${state.habits.length} habits`);
-  render();
-}
-
 /* ─── Boot sequence ──────────────────────────────────────── */
-async function boot() {
-  // wait for splash
-  await new Promise(r => setTimeout(r, 1100));
-  document.getElementById('boot').classList.add('hidden');
-  document.querySelectorAll('.reveal').forEach((el, i) => {
-    setTimeout(() => el.classList.add('in'), 60 * i);
-  });
-
-  if (window.__CONFIG_MISSING || !sb) {
-    showLogin();
-    setLoginMsg('config.js missing — copy config.example.js → config.js and fill in supabase keys', 'err');
-    loginBtn.disabled = true;
-    return;
-  }
-
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    await onAuthed(session);
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('boot').classList.add('hidden');
+    document.querySelectorAll('.reveal').forEach((el, i) => {
+      setTimeout(() => el.classList.add('in'), 60 * i);
+    });
     cmdInput.focus();
-  } else {
-    showLogin();
-    emailEl.focus();
-  }
+  }, 1200);
+});
 
-  sb.auth.onAuthStateChange((_event, sess) => {
-    if (sess && (!state.user || state.user.id !== sess.user.id)) {
-      onAuthed(sess);
-    }
-  });
+/* ─── Supabase sync ──────────────────────────────────────── */
+const SUPA_CFG_KEY  = 'habbit.supabase.config';
+const SUPA_AUTH_KEY = 'habbit.supabase.auth';
+
+let sb = null;        // supabase client
+let sbState = 'offline';   // offline | connecting | syncing | online | error
+let sbReady = false;       // true once initial pull completes — gates pushes
+const sbQueue = [];        // pushes deferred until sbReady
+
+function loadSbCfg()  { try { return JSON.parse(localStorage.getItem(SUPA_CFG_KEY)); } catch { return null; } }
+function saveSbCfg(c) { localStorage.setItem(SUPA_CFG_KEY, JSON.stringify(c)); }
+function clearSbCfg() { localStorage.removeItem(SUPA_CFG_KEY); }
+
+function setSbState(s, label) {
+  sbState = s;
+  const pill = document.getElementById('sync-pill');
+  pill.dataset.state = s;
+  pill.textContent = label || s;
 }
 
-window.addEventListener('load', boot);
+function pushQ(fn) {
+  if (sbReady) fn().catch(e => logEvt('err', 'sync: ' + (e.message || e)));
+  else sbQueue.push(fn);
+}
+function drainQueue() {
+  while (sbQueue.length) {
+    const fn = sbQueue.shift();
+    fn().catch(e => logEvt('err', 'sync: ' + (e.message || e)));
+  }
+}
 
+async function sbConnect() {
+  const cfg = loadSbCfg();
+  if (!cfg || !cfg.url || !cfg.key) { setSbState('offline'); return; }
+  if (!window.supabase) { setSbState('error'); logEvt('err', 'supabase sdk failed to load'); render(); return; }
+  setSbState('connecting');
+  try {
+    sb = window.supabase.createClient(cfg.url, cfg.key, {
+      auth: { persistSession: true, storageKey: SUPA_AUTH_KEY, autoRefreshToken: true }
+    });
+    let { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      const { data, error } = await sb.auth.signInAnonymously();
+      if (error) throw error;
+      session = data.session;
+    }
+    setSbState('syncing');
+    await sbPull();
+    sbReady = true;
+    setSbState('online');
+    logEvt('ok', 'sync online');
+    drainQueue();
+    render();
+  } catch (e) {
+    setSbState('error');
+    logEvt('err', 'sync: ' + (e.message || e));
+    render();
+  }
+}
+
+async function sbPull() {
+  if (!sb) return;
+  const [habitsRes, logsRes] = await Promise.all([
+    sb.from('habits').select('id, name, done, created_at').order('created_at'),
+    sb.from('logs').select('ts, kind, msg, name').order('ts', { ascending: false }).limit(200)
+  ]);
+  if (habitsRes.error) throw habitsRes.error;
+  if (logsRes.error)   throw logsRes.error;
+
+  // First-connect: empty remote + populated local → push local up so we
+  // don't wipe the user's existing data on the very first sync.
+  if (habitsRes.data.length === 0 && state.habits.length > 0) {
+    const toInsert = state.habits.map(h => ({ name: h.name, done: h.done || [] }));
+    const ins = await sb.from('habits').insert(toInsert).select('id, name, done, created_at');
+    if (ins.error) throw ins.error;
+    habitsRes.data = ins.data;
+    logEvt('ok', `migrated ${ins.data.length} local habits to cloud`);
+  }
+
+  state.habits = habitsRes.data.map(h => ({ id: h.id, name: h.name, done: h.done || [] }));
+  state.log = logsRes.data.reverse().map(l => ({
+    ts: new Date(l.ts).getTime(),
+    kind: l.kind, msg: l.msg, name: l.name || ''
+  }));
+  // ensure local nextId never collides with bigints from supabase
+  const maxId = state.habits.reduce((m,h) => Math.max(m, h.id), 0);
+  state.nextId = Math.max(state.nextId, maxId + 1);
+  save();
+}
+
+function sbDisconnect() {
+  if (sb) { try { sb.auth.signOut(); } catch {} }
+  clearSbCfg();
+  localStorage.removeItem(SUPA_AUTH_KEY);
+  sb = null; sbReady = false;
+  setSbState('offline');
+  logEvt('', 'sync disconnected');
+  render();
+  toast('sync disconnected');
+}
+
+/* Replace mutations with sync-aware versions. The originals stay defined
+   but are shadowed; a temp negative id is used until the insert returns. */
+
+addHabit = function(name) {
+  if (!name) return err('add: missing <name>');
+  // Use a temp id derived from a counter (so re-renders are stable
+  // before the insert returns). Negative to make it obvious.
+  const tempId = -Date.now();
+  state.habits.push({ id: tempId, name, done: [] });
+  logEvt('ok', 'habit created', name);
+  toast(`+ added "${name}"`);
+  save(); render();
+  pushQ(async () => {
+    const { data, error } = await sb.from('habits')
+      .insert({ name, done: [] })
+      .select('id').single();
+    if (error) throw error;
+    const h = state.habits.find(x => x.id === tempId);
+    if (h) { h.id = data.id; save(); render(); }
+  });
+};
+
+removeHabit = function(id) {
+  const i = state.habits.findIndex(h => h.id === id);
+  if (i === -1) return err(`rm: id ${id} not found`);
+  const [h] = state.habits.splice(i, 1);
+  logEvt('err', 'habit deleted', h.name);
+  toast(`- removed "${h.name}"`, 'err');
+  save(); render();
+  pushQ(async () => {
+    if (h.id < 0) return; // never persisted
+    const { error } = await sb.from('habits').delete().eq('id', h.id);
+    if (error) throw error;
+  });
+};
+
+markDone = function(id) {
+  const h = state.habits.find(h => h.id === id);
+  if (!h) return err(`done: id ${id} not found`);
+  const today = isoDay(new Date());
+  if (h.done.includes(today)) return err(`done: "${h.name}" already checked today`);
+  h.done.push(today);
+  logEvt('ok', 'check', h.name);
+  toast(`✓ ${h.name}`);
+  save(); render();
+  pushQ(() => sbUpdateDone(h));
+};
+
+undoToday = function(id) {
+  const h = state.habits.find(h => h.id === id);
+  if (!h) return err(`undo: id ${id} not found`);
+  const today = isoDay(new Date());
+  const before = h.done.length;
+  h.done = h.done.filter(d => d !== today);
+  if (h.done.length === before) return err(`undo: "${h.name}" wasn't checked today`);
+  logEvt('err', 'uncheck', h.name);
+  toast(`× undid "${h.name}"`);
+  save(); render();
+  pushQ(() => sbUpdateDone(h));
+};
+
+toggleDay = function(id, iso) {
+  const h = state.habits.find(h => h.id === id);
+  if (!h) return;
+  if (h.done.includes(iso)) {
+    h.done = h.done.filter(d => d !== iso);
+    logEvt('err', `uncheck ${iso}`, h.name);
+  } else {
+    h.done.push(iso);
+    logEvt('ok', `check ${iso}`, h.name);
+  }
+  save(); render();
+  pushQ(() => sbUpdateDone(h));
+};
+
+async function sbUpdateDone(h) {
+  if (h.id < 0) return; // wait for insert to settle
+  const { error } = await sb.from('habits').update({ done: h.done }).eq('id', h.id);
+  if (error) throw error;
+}
+
+// Mirror log entries to supabase (best effort; never throws to caller).
+logEvt = function(kind, msg, name='') {
+  const entry = { ts: Date.now(), kind, msg, name };
+  state.log.push(entry);
+  if (state.log.length > 200) state.log = state.log.slice(-200);
+  if (sbReady) {
+    sb.from('logs').insert({
+      ts: new Date(entry.ts).toISOString(),
+      kind: entry.kind || '',
+      msg:  entry.msg,
+      name: entry.name || ''
+    }).then(({ error }) => { if (error) console.warn('log push:', error.message); });
+  }
+};
+
+/* ─── Modal wiring ───────────────────────────────────────── */
+function openSyncModal() {
+  const cfg = loadSbCfg() || {};
+  document.getElementById('sync-url').value = cfg.url || '';
+  document.getElementById('sync-key').value = cfg.key || '';
+  document.getElementById('sync-modal').classList.add('show');
+  setTimeout(() => document.getElementById('sync-url').focus(), 50);
+}
+function closeSyncModal() { document.getElementById('sync-modal').classList.remove('show'); cmdInput.focus(); }
+
+document.getElementById('sync-cancel').addEventListener('click', closeSyncModal);
+document.getElementById('sync-disconnect').addEventListener('click', () => { closeSyncModal(); sbDisconnect(); });
+document.getElementById('sync-save').addEventListener('click', async () => {
+  const url = document.getElementById('sync-url').value.trim();
+  const key = document.getElementById('sync-key').value.trim();
+  if (!url || !key) { toast('url and key required', 'err'); return; }
+  saveSbCfg({ url, key });
+  closeSyncModal();
+  sbReady = false;
+  await sbConnect();
+});
+document.getElementById('sync-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'sync-modal') closeSyncModal();
+});
+document.getElementById('sync-pill').addEventListener('click', openSyncModal);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('sync-modal').classList.contains('show')) closeSyncModal();
+});
+
+// Kick off — render first so UI is responsive, then connect (which re-renders).
 render();
+sbConnect();
 </script>
 </body>
 </html>

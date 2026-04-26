@@ -1,56 +1,44 @@
 -- HABBIT.CLI — Supabase schema
--- Run once in Supabase SQL editor.
-
-create extension if not exists "pgcrypto";
+-- Run this in the Supabase SQL editor (Project → SQL → New query) one time.
+-- Auth: enable "Anonymous sign-ins" under Authentication → Providers before connecting.
 
 create table if not exists public.habits (
-  id          uuid primary key default gen_random_uuid(),
+  id          bigint primary key generated always as identity,
   user_id     uuid not null references auth.users(id) on delete cascade,
   name        text not null,
-  short_id    int  not null,
+  done        date[] not null default '{}',
   created_at  timestamptz not null default now()
 );
 
-create unique index if not exists habits_user_short_id_idx
-  on public.habits(user_id, short_id);
+create index if not exists habits_user_idx on public.habits(user_id);
 
-create table if not exists public.checkins (
-  id          uuid primary key default gen_random_uuid(),
-  habit_id    uuid not null references public.habits(id) on delete cascade,
-  user_id     uuid not null references auth.users(id) on delete cascade,
-  day         date not null,
-  created_at  timestamptz not null default now(),
-  unique (habit_id, day)
+create table if not exists public.logs (
+  id       bigint primary key generated always as identity,
+  user_id  uuid not null references auth.users(id) on delete cascade,
+  ts       timestamptz not null default now(),
+  kind     text not null,
+  msg      text not null,
+  name     text not null default ''
 );
 
-create index if not exists checkins_user_day_idx on public.checkins(user_id, day);
-create index if not exists checkins_habit_idx    on public.checkins(habit_id);
+create index if not exists logs_user_ts_idx on public.logs(user_id, ts desc);
 
--- ── RLS ───────────────────────────────────────────────────────────────────
-alter table public.habits   enable row level security;
-alter table public.checkins enable row level security;
+-- RLS: each anon/auth user sees only their own rows.
+alter table public.habits enable row level security;
+alter table public.logs   enable row level security;
 
 drop policy if exists "habits owner all" on public.habits;
-create policy "habits owner all"
-  on public.habits
+create policy "habits owner all" on public.habits
   for all
-  using (auth.uid() = user_id)
+  using  (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
-drop policy if exists "checkins owner all" on public.checkins;
-create policy "checkins owner all"
-  on public.checkins
+drop policy if exists "logs owner all" on public.logs;
+create policy "logs owner all" on public.logs
   for all
-  using (auth.uid() = user_id)
+  using  (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- ── helper: assign next short_id per user ─────────────────────────────────
-create or replace function public.next_short_id(p_user uuid)
-returns int
-language sql
-stable
-as $$
-  select coalesce(max(short_id), 0) + 1
-  from public.habits
-  where user_id = p_user;
-$$;
+-- Default user_id to the caller so inserts don't have to set it explicitly.
+alter table public.habits alter column user_id set default auth.uid();
+alter table public.logs   alter column user_id set default auth.uid();
