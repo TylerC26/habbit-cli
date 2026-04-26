@@ -780,7 +780,7 @@
       <span class="caret"></span>
     </div>
     <div class="hint">
-      try: <kbd>add &lt;name&gt;</kbd> <kbd>done &lt;id&gt;</kbd> <kbd>undo &lt;id&gt;</kbd> <kbd>rm &lt;id&gt;</kbd> <kbd>sync</kbd> <kbd>help</kbd> <kbd>clear</kbd> <kbd>reset</kbd>
+      try: <kbd>add &lt;name&gt;</kbd> <kbd>done &lt;id&gt;</kbd> <kbd>undo &lt;id&gt;</kbd> <kbd>rm &lt;id&gt;</kbd> <kbd>sync</kbd> <kbd>syncdb</kbd> <kbd>help</kbd> <kbd>clear</kbd> <kbd>reset</kbd>
       &nbsp;&nbsp;·&nbsp;&nbsp; arrow keys = history &nbsp;·&nbsp; tab = autocomplete
     </div>
   </footer>
@@ -1069,6 +1069,13 @@ function exec(line) {
       else if (rest[0] === 'off')    { sbDisconnect(); }
       else                            { openSyncModal(); }
       break;
+    case 'syncdb':
+      if (!sb) { err('syncdb: not connected. type `sync` to configure'); break; }
+      toast('pulling from supabase…');
+      sbPull()
+        .then(() => { render(); logEvt('ok', `pulled ${state.habits.length} habits from supabase`); toast(`synced ${state.habits.length} habits`); render(); })
+        .catch(e => err('syncdb: ' + (e.message || e)));
+      break;
     default:      err(`${cmd}: command not found. type \`help\``);
   }
   save();
@@ -1086,7 +1093,8 @@ function showHelp() {
     'sync            — configure supabase backend',
     'sync pull       — re-pull from supabase (cloud is authoritative)',
     'sync push       — upload local habits when cloud is empty',
-    'sync off        — disconnect supabase'
+    'sync off        — disconnect supabase',
+    'syncdb          — pull all habits from supabase and render'
   ];
   for (const l of lines) logEvt('', l);
   render();
@@ -1115,7 +1123,7 @@ cmdInput.addEventListener('keydown', (e) => {
     cmdInput.value = state.history[histIdx] || '';
   } else if (e.key === 'Tab') {
     e.preventDefault();
-    const cmds = ['add','done','undo','rm','ls','help','clear','reset','whoami','sync'];
+    const cmds = ['add','done','undo','rm','ls','help','clear','reset','whoami','sync','syncdb'];
     const v = cmdInput.value.toLowerCase();
     const m = cmds.find(c => c.startsWith(v));
     if (m) cmdInput.value = (m + ' ').toUpperCase();
