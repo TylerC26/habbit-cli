@@ -623,8 +623,9 @@
   .reveal.in { animation: reveal 0.45s ease forwards; }
   @keyframes reveal { to { opacity: 1; transform: none; } }
 
-  /* responsive — collapse to single column under 880px */
-  @media (max-width: 880px) {
+  /* responsive — collapse to single column under 1024px so the mobile
+     layout also covers phone landscape and small tablets. */
+  @media (max-width: 1024px) {
     main { grid-template-columns: 1fr; }
     .right-col { grid-template-rows: auto auto; }
     .topbar { grid-template-columns: 1fr; gap: 10px; }
@@ -656,9 +657,9 @@
     #panel-activity.open .panel-title::after,
     #panel-log.open .panel-title::after { content: '[-]'; }
     #panel-activity .panel-body,
-    #panel-log .panel-body { display: none; }
+    #panel-log .panel-body { display: none !important; }
     #panel-activity.open .panel-body,
-    #panel-log.open .panel-body { display: block; }
+    #panel-log.open .panel-body { display: block !important; }
 
     /* Right column should not eat vertical space when both are collapsed. */
     .right-col { grid-template-rows: auto auto; gap: 12px; }
@@ -666,11 +667,11 @@
     .shell { height: auto; min-height: 100vh; }
     body { overflow: auto; }
 
-    /* Show only the most recent 3 days of the week-grid on mobile so the
-       habit name has more room. Cells are rendered oldest → newest, so we
-       hide the first 4. */
-    .week-grid { grid-template-columns: repeat(3, 16px); }
-    .week-grid .day:nth-child(-n+4) { display: none; }
+    /* Show only the most recent 5 days of the 7 on mobile so the habit
+       name has more room. Cells are rendered oldest → newest, so hide
+       the first 2 of the 7. */
+    .week-grid { grid-template-columns: repeat(5, 16px); }
+    .week-grid .day:nth-child(-n+2) { display: none; }
   }
 </style>
 </head>
@@ -730,7 +731,7 @@
           <thead>
             <tr>
               <th style="width: 38%">name</th>
-              <th>last 7 days</th>
+              <th></th>
               <th style="width: 80px">streak</th>
               <th style="width: 70px"></th>
             </tr>
@@ -1133,7 +1134,7 @@ cmdInput.addEventListener('keydown', (e) => {
 
 // On mobile we don't auto-focus the command line — focusing it pops up the
 // soft keyboard and yanks the viewport, which feels like the page jumped.
-const isMobile = () => window.matchMedia('(max-width: 880px)').matches;
+const isMobile = () => window.matchMedia('(max-width: 1024px)').matches;
 
 document.addEventListener('click', (e) => {
   if (isMobile()) return;
