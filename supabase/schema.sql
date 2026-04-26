@@ -23,21 +23,27 @@ create table if not exists public.logs (
 
 create index if not exists logs_user_ts_idx on public.logs(user_id, ts desc);
 
--- RLS: each anon/auth user sees only their own rows.
+-- RLS: shared dataset — every signed-in (including anonymous) session sees
+-- and edits all rows. This makes habits sync across devices/browsers even
+-- when each browser has its own anonymous user_id. Trade-off: anyone with
+-- the anon key can read/write everything in this table — only acceptable
+-- for single-user personal projects.
 alter table public.habits enable row level security;
 alter table public.logs   enable row level security;
 
 drop policy if exists "habits owner all" on public.habits;
-create policy "habits owner all" on public.habits
+drop policy if exists "habits shared"    on public.habits;
+create policy "habits shared" on public.habits
   for all
-  using  (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  using  (true)
+  with check (true);
 
 drop policy if exists "logs owner all" on public.logs;
-create policy "logs owner all" on public.logs
+drop policy if exists "logs shared"    on public.logs;
+create policy "logs shared" on public.logs
   for all
-  using  (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  using  (true)
+  with check (true);
 
 -- Default user_id to the caller so inserts don't have to set it explicitly.
 alter table public.habits alter column user_id set default auth.uid();

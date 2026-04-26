@@ -790,7 +790,8 @@
   <div class="modal">
     <h2>SYNC :: SUPABASE</h2>
     <p>// connect to supabase to back up habits across devices.<br>
-       paste your project url + anon key. enable anonymous sign-ins under auth → providers, and run supabase/schema.sql once.</p>
+       paste your project url + anon key. enable anonymous sign-ins under auth → providers, and run supabase/schema.sql once.<br>
+       habits are shared across all sessions connected to this project (sorted by id).</p>
     <label for="sync-url">PROJECT URL</label>
     <input id="sync-url" type="text" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off" spellcheck="false">
     <label for="sync-key">ANON KEY</label>
@@ -1232,7 +1233,7 @@ async function sbConnect() {
 async function sbPull() {
   if (!sb) return;
   const [habitsRes, logsRes] = await Promise.all([
-    sb.from('habits').select('id, name, done, created_at').order('created_at'),
+    sb.from('habits').select('id, name, done').order('id', { ascending: true }),
     sb.from('logs').select('ts, kind, msg, name').order('ts', { ascending: false }).limit(200)
   ]);
   if (habitsRes.error) throw habitsRes.error;
