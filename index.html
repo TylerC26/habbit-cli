@@ -423,6 +423,11 @@
     caret-color: transparent;
     text-transform: uppercase;
   }
+  .cmdline:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 8px rgba(255,176,0,0.55), 0 0 22px rgba(255,176,0,0.18);
+  }
+  .cmdline:focus-within .prompt { text-shadow: 0 0 8px rgba(255,176,0,0.85), 0 0 18px rgba(255,176,0,0.35); }
   .caret {
     width: 9px; height: 16px; background: var(--fg);
     display: inline-block; box-shadow: var(--glow);
@@ -584,7 +589,11 @@
     padding: 6px 8px;
     outline: 0;
   }
-  .modal input:focus { border-color: var(--fg); box-shadow: 0 0 0 1px var(--fg-faint); }
+  .modal input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 10px rgba(255,176,0,0.35);
+    color: var(--fg);
+  }
   .modal-actions {
     display: flex; justify-content: flex-end; gap: 8px;
     margin-top: 16px;
@@ -620,6 +629,41 @@
     .topbar { grid-template-columns: 1fr; gap: 10px; }
     .stat-strip { flex-wrap: wrap; }
     .brand { font-size: 40px; }
+    /* iOS Safari auto-zooms into any input with computed font-size < 16px;
+       bump inputs so the page no longer scales when a field gains focus. */
+    .cmdline input,
+    .modal input { font-size: 16px; }
+
+    /* Collapsible side panels on mobile — they otherwise crowd out the
+       habit table. Tap the panel title to expand. */
+    #panel-activity, #panel-log { flex: 0 0 auto; }
+    #panel-activity .panel-title,
+    #panel-log .panel-title {
+      cursor: pointer;
+      user-select: none;
+    }
+    #panel-activity .panel-title .dots,
+    #panel-log .panel-title .dots { display: none; }
+    #panel-activity .panel-title::after,
+    #panel-log .panel-title::after {
+      content: '[+]';
+      color: var(--accent);
+      text-shadow: var(--glow-amber);
+      letter-spacing: 1px;
+      font-size: 11px;
+    }
+    #panel-activity.open .panel-title::after,
+    #panel-log.open .panel-title::after { content: '[-]'; }
+    #panel-activity .panel-body,
+    #panel-log .panel-body { display: none; }
+    #panel-activity.open .panel-body,
+    #panel-log.open .panel-body { display: block; }
+
+    /* Right column should not eat vertical space when both are collapsed. */
+    .right-col { grid-template-rows: auto auto; gap: 12px; }
+    main { overflow: visible; }
+    .shell { height: auto; min-height: 100vh; }
+    body { overflow: auto; }
   }
 </style>
 </head>
@@ -691,7 +735,7 @@
     </section>
 
     <aside class="right-col">
-      <section class="panel reveal">
+      <section class="panel reveal" id="panel-activity">
         <div class="panel-title">
           <span>./activity — last 30 days</span>
           <span class="dots"><span></span><span></span><span></span></span>
@@ -710,7 +754,7 @@
         </div>
       </section>
 
-      <section class="panel reveal">
+      <section class="panel reveal" id="panel-log">
         <div class="panel-title">
           <span>./log — stdout stream</span>
           <span class="dots"><span></span><span></span><span></span></span>
@@ -1373,6 +1417,19 @@ document.getElementById('sync-modal').addEventListener('click', (e) => {
 document.getElementById('sync-pill').addEventListener('click', openSyncModal);
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && document.getElementById('sync-modal').classList.contains('show')) closeSyncModal();
+});
+
+/* Mobile collapsible panels — clicking the title toggles its `.open` class.
+   Active in CSS only at <=880px, but the listener is harmless on desktop. */
+['panel-activity', 'panel-log'].forEach(id => {
+  const p = document.getElementById(id);
+  if (!p) return;
+  const t = p.querySelector('.panel-title');
+  t.addEventListener('click', (e) => {
+    // ignore clicks bubbled up from interactive children
+    if (e.target.closest('button, a, input')) return;
+    p.classList.toggle('open');
+  });
 });
 
 // Kick off — render first so UI is responsive, then connect (which re-renders).
