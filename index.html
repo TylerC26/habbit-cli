@@ -664,6 +664,12 @@
     main { overflow: visible; }
     .shell { height: auto; min-height: 100vh; }
     body { overflow: auto; }
+
+    /* Show only the most recent 3 days of the week-grid on mobile so the
+       habit name has more room. Cells are rendered oldest → newest, so we
+       hide the first 4. */
+    .week-grid { grid-template-columns: repeat(3, 16px); }
+    .week-grid .day:nth-child(-n+4) { display: none; }
   }
 </style>
 </head>
@@ -770,7 +776,7 @@
   <footer>
     <div class="cmdline">
       <span class="prompt" id="prompt-glyph">tylerc26@habbit:~$</span>
-      <input id="cmd" type="text" autocomplete="off" spellcheck="false" autofocus />
+      <input id="cmd" type="text" autocomplete="off" spellcheck="false" />
       <span class="caret"></span>
     </div>
     <div class="hint">
@@ -900,7 +906,6 @@ function renderRow(h) {
   const grid = document.createElement('div');
   grid.className = 'week-grid';
   const todayIso = isoDay(new Date());
-  const dayLabels = ['S','M','T','W','T','F','S'];
   for (let i = 6; i >= 0; i--) {
     const d = addDays(new Date(), -i);
     const iso = isoDay(d);
@@ -909,12 +914,6 @@ function renderRow(h) {
     cell.title = iso;
     if (h.done.includes(iso)) cell.classList.add('done');
     if (iso === todayIso) cell.classList.add('today');
-    if (i === 6) {
-      const lbl = document.createElement('span');
-      lbl.className = 'lbl';
-      lbl.textContent = dayLabels[d.getDay()];
-      cell.appendChild(lbl);
-    }
     cell.addEventListener('click', () => toggleDay(h.id, iso));
     grid.appendChild(cell);
   }
@@ -1125,8 +1124,13 @@ cmdInput.addEventListener('keydown', (e) => {
   }
 });
 
+// On mobile we don't auto-focus the command line — focusing it pops up the
+// soft keyboard and yanks the viewport, which feels like the page jumped.
+const isMobile = () => window.matchMedia('(max-width: 880px)').matches;
+
 document.addEventListener('click', (e) => {
-  if (e.target.closest('button, .day, input, a')) return;
+  if (isMobile()) return;
+  if (e.target.closest('button, .day, input, a, .panel-title')) return;
   cmdInput.focus();
 });
 
@@ -1159,7 +1163,7 @@ window.addEventListener('load', () => {
     document.querySelectorAll('.reveal').forEach((el, i) => {
       setTimeout(() => el.classList.add('in'), 60 * i);
     });
-    cmdInput.focus();
+    if (!isMobile()) cmdInput.focus();
   }, 1200);
 });
 
@@ -1398,7 +1402,10 @@ function openSyncModal() {
   document.getElementById('sync-modal').classList.add('show');
   setTimeout(() => document.getElementById('sync-url').focus(), 50);
 }
-function closeSyncModal() { document.getElementById('sync-modal').classList.remove('show'); cmdInput.focus(); }
+function closeSyncModal() {
+  document.getElementById('sync-modal').classList.remove('show');
+  if (!isMobile()) cmdInput.focus();
+}
 
 document.getElementById('sync-cancel').addEventListener('click', closeSyncModal);
 document.getElementById('sync-disconnect').addEventListener('click', () => { closeSyncModal(); sbDisconnect(); });
