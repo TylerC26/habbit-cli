@@ -96,6 +96,12 @@ create table if not exists public.expenses (
 
 create index if not exists expenses_trip_idx on public.expenses(trip_code, created_at desc);
 
+-- Per-expense split list. Empty / null means "split equally among all
+-- current trip members" (default, and the back-compat fallback for
+-- rows created before this column existed).
+alter table public.expenses
+  add column if not exists participants text[] not null default '{}';
+
 alter table public.trips    enable row level security;
 alter table public.expenses enable row level security;
 

@@ -689,6 +689,48 @@
   }
   .member-chip.me { color: var(--accent); border-color: var(--accent); text-shadow: var(--glow-amber); }
 
+  /* Split-with chips (toggle who's included in this expense) */
+  .split-row {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+  }
+  .split-label { color: var(--fg-faint); }
+  .split-hint  { color: var(--fg-faint); font-size: 9px; }
+  #split-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .split-chip {
+    background: transparent;
+    border: 1px solid var(--fg);
+    color: var(--fg);
+    font: inherit;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 2px 8px;
+    cursor: pointer;
+  }
+  .split-chip:hover { background: rgba(150,255,120,0.06); }
+  .split-chip.excluded {
+    color: var(--fg-faint);
+    border-color: var(--fg-faint);
+    text-decoration: line-through;
+    text-decoration-color: var(--fg-faint);
+  }
+
+  .split-badge {
+    color: var(--accent);
+    border: 1px solid var(--fg-faint);
+    padding: 0 4px;
+    font-size: 9px;
+    letter-spacing: 1px;
+    margin-left: 4px;
+    text-shadow: var(--glow-amber);
+  }
+
   .expense-form {
     display: grid;
     grid-template-columns: 110px 1fr 140px auto;
@@ -905,6 +947,14 @@
     .expense-form button { grid-column: 1 / -1; }
     .expense-row { grid-template-columns: 1fr 70px 70px 24px; }
     .expense-row .when { display: none; }
+    /* Keep the trip panel-title on a single row on mobile by hiding
+       the dots and letting the long title text shrink/truncate. */
+    #panel-trip .panel-title { gap: 8px; min-width: 0; }
+    #panel-trip .panel-title > span:first-child {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+    }
+    #panel-trip .panel-title .dots { display: none; }
+    #panel-trip .trip-back { flex: 0 0 auto; }
   }
 
   /* ─── Stagger reveal ─────────────────────────────────────── */
@@ -1092,6 +1142,12 @@
             <select id="exp-paid"></select>
             <button type="submit">add</button>
           </form>
+
+          <div class="split-row">
+            <span class="split-label">SPLIT WITH</span>
+            <div id="split-chips"></div>
+            <span class="split-hint" id="split-hint">— click a name to exclude</span>
+          </div>
 
           <div class="expense-list" id="expense-list"></div>
 
@@ -1896,6 +1952,10 @@ document.addEventListener('keydown', (e) => {
    state.expenses = [{ id, trip_code, amount, currency, description, paid_by, created_at }] */
 
 let tripChannel = null;
+// Members excluded from the next expense's split. Resets to "all
+// included" after each successful submission. Lives in module scope —
+// transient UI state, not persisted.
+const splitExcluded = new Set();
 
 function genTripCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I,O,0,1
@@ -1971,10 +2031,19 @@ async function tripPullTrip() {
   save();
 }
 
+// Resolve which members this expense should be split across. Empty /
+// null means the expense was created before the participants column
+// existed, or via a path that didn't set it — in both cases we fall
+// back to all current trip members.
+function expenseParticipants(e) {
+  if (e && Array.isArray(e.participants) && e.participants.length > 0) return e.participants;
+  return state.trip ? state.trip.members.slice() : [];
+}
+
 async function tripPullExpenses() {
   if (!sb || !state.trip) return;
   const { data, error } = await sb.from('expenses')
-    .select('id, trip_code, amount, currency, description, paid_by, created_at')
+    .select('id, trip_code, amount, currency, description, paid_by, participants, created_at')
     .eq('trip_code', state.trip.code)
     .order('created_at', { ascending: false })
     .limit(500);
@@ -1983,7 +2052,7 @@ async function tripPullExpenses() {
   save();
 }
 
-async function tripAddExpense({ amount, description, paidBy }) {
+async function tripAddExpense({ amount, description, paidBy, participants }) {
   if (!sb) { err('trip: not connected'); return; }
   if (!state.trip) { err('trip: join a trip first'); return; }
   const amt = Number(amount);
@@ -1996,14 +2065,23 @@ async function tripAddExpense({ amount, description, paidBy }) {
     await sb.from('trips').update({ members }).eq('trip_code', state.trip.code);
     state.trip.members = members;
   }
+  // Default participants = all current members. An empty array would
+  // mean "split among nobody" which doesn't make sense, so fall back.
+  let parts = Array.isArray(participants) && participants.length > 0
+    ? participants.slice()
+    : state.trip.members.slice();
+  // Guard: drop any names that aren't trip members.
+  parts = parts.filter(n => state.trip.members.includes(n));
+  if (parts.length === 0) parts = state.trip.members.slice();
   const { data, error } = await sb.from('expenses')
-    .insert({ trip_code: state.trip.code, amount: amt, description, paid_by: who })
-    .select('id, trip_code, amount, currency, description, paid_by, created_at').single();
+    .insert({ trip_code: state.trip.code, amount: amt, description, paid_by: who, participants: parts })
+    .select('id, trip_code, amount, currency, description, paid_by, participants, created_at').single();
   if (error) { err('trip add: ' + error.message); return; }
   state.expenses.unshift(data);
   save(); renderTrip();
-  toast(`+ ${fmtMoney(amt)} · ${description}`);
-  logEvt('ok', `expense ${fmtMoney(amt)} (${who})`, description);
+  const splitNote = parts.length < state.trip.members.length ? ` (÷${parts.length})` : '';
+  toast(`+ ${fmtMoney(amt)} · ${description}${splitNote}`);
+  logEvt('ok', `expense ${fmtMoney(amt)} (${who})${splitNote}`, description);
 }
 
 async function tripRemoveExpense(id) {
@@ -2062,16 +2140,23 @@ function tripLeave() {
 function renderTripStats() {
   if (!state.trip) return;
   const total = state.expenses.reduce((s, e) => s + Number(e.amount), 0);
-  const members = state.trip.members.length || 1;
-  const share = total / members;
+  // "Your share" is the sum of your portion of each expense you
+  // participated in (some expenses may exclude you).
+  let myShare  = 0;
   let paidByMe = 0;
-  for (const e of state.expenses) if (e.paid_by === state.trip.me) paidByMe += Number(e.amount);
-  const net = paidByMe - share; // >0: you're owed, <0: you owe
+  for (const e of state.expenses) {
+    const parts = expenseParticipants(e);
+    if (parts.length > 0 && parts.includes(state.trip.me)) {
+      myShare += Number(e.amount) / parts.length;
+    }
+    if (e.paid_by === state.trip.me) paidByMe += Number(e.amount);
+  }
+  const net = paidByMe - myShare; // >0: you're owed, <0: you owe
   const totalEl   = document.getElementById('stat-trip-total');
   const shareEl   = document.getElementById('stat-trip-share');
   const balanceEl = document.getElementById('stat-trip-balance');
   if (totalEl)   totalEl.textContent   = fmtMoney(total);
-  if (shareEl)   shareEl.textContent   = fmtMoney(share);
+  if (shareEl)   shareEl.textContent   = fmtMoney(myShare);
   if (balanceEl) {
     const sign = net >= 0 ? '+' : '−';
     balanceEl.textContent = sign + fmtMoney(Math.abs(net));
@@ -2079,20 +2164,27 @@ function renderTripStats() {
   }
 }
 
-/* Pure balance math — equal split across members.
-   Returns [{ from, to, amount }] suggesting settlements. */
+/* Per-expense balance math.
+   Each expense splits its amount equally across its participants
+   (defaulting to all members when the list is empty). The payer is
+   credited the full amount. Returns [{ from, to, amount }]
+   suggesting greedy settlements. */
 function computeBalances() {
   if (!state.trip) return [];
   const members = state.trip.members.slice();
   if (members.length === 0) return [];
-  const total = state.expenses.reduce((s, e) => s + Number(e.amount), 0);
-  const share = total / members.length;
-  const net = Object.fromEntries(members.map(m => [m, -share])); // each starts owing their share
+  const net = Object.fromEntries(members.map(m => [m, 0]));
   for (const e of state.expenses) {
-    if (!(e.paid_by in net)) net[e.paid_by] = -share; // safety
+    const parts = expenseParticipants(e);
+    if (parts.length === 0) continue;
+    const share = Number(e.amount) / parts.length;
+    for (const p of parts) {
+      if (!(p in net)) net[p] = 0;
+      net[p] -= share;
+    }
+    if (!(e.paid_by in net)) net[e.paid_by] = 0;
     net[e.paid_by] += Number(e.amount);
   }
-  // Greedy settle: largest creditor pays largest debtor.
   const creditors = Object.entries(net).filter(([,v]) => v >  0.005).map(([n,v]) => ({n, v}));
   const debtors   = Object.entries(net).filter(([,v]) => v < -0.005).map(([n,v]) => ({n, v: -v}));
   creditors.sort((a,b) => b.v - a.v);
@@ -2107,6 +2199,40 @@ function computeBalances() {
     if (d.v < 0.005) debtors.shift();
   }
   return out;
+}
+
+function renderSplitChips() {
+  const wrap = document.getElementById('split-chips');
+  const hint = document.getElementById('split-hint');
+  if (!wrap || !state.trip) return;
+  // Drop any excluded names that are no longer trip members.
+  for (const n of [...splitExcluded]) {
+    if (!state.trip.members.includes(n)) splitExcluded.delete(n);
+  }
+  wrap.innerHTML = '';
+  for (const m of state.trip.members) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'split-chip' + (splitExcluded.has(m) ? ' excluded' : '');
+    chip.textContent = m;
+    chip.addEventListener('click', () => {
+      if (splitExcluded.has(m)) splitExcluded.delete(m);
+      else splitExcluded.add(m);
+      renderSplitChips();
+    });
+    wrap.appendChild(chip);
+  }
+  if (hint) {
+    const n = state.trip.members.length - splitExcluded.size;
+    hint.textContent = splitExcluded.size === 0
+      ? `— all ${state.trip.members.length} included`
+      : `— ÷${n} (excluded: ${[...splitExcluded].join(', ')})`;
+  }
+}
+
+function currentParticipants() {
+  if (!state.trip) return [];
+  return state.trip.members.filter(m => !splitExcluded.has(m));
 }
 
 function renderTrip() {
@@ -2153,6 +2279,9 @@ function renderTrip() {
   }
   paidSel.value = state.trip.members.includes(prev) ? prev : state.trip.me;
 
+  // Split-with chips (which members are included in the next expense's split)
+  renderSplitChips();
+
   // Expense list
   listEl.innerHTML = '';
   if (state.expenses.length === 0) {
@@ -2161,13 +2290,18 @@ function renderTrip() {
     e.textContent = '// no expenses yet';
     listEl.appendChild(e);
   } else {
+    const totalMembers = state.trip.members.length;
     for (const e of state.expenses) {
       const row = document.createElement('div');
       row.className = 'expense-row';
       const when = new Date(e.created_at);
+      const parts = expenseParticipants(e);
+      const splitBadge = (parts.length > 0 && parts.length < totalMembers)
+        ? ` <span class="split-badge" title="split among ${parts.map(escape).join(', ')}">÷${parts.length}</span>`
+        : '';
       row.innerHTML = `
         <span class="when">${escape(when.toLocaleDateString('en-GB', { month:'short', day:'2-digit' }).toUpperCase())}</span>
-        <span class="desc">${escape(e.description)}</span>
+        <span class="desc">${escape(e.description)}${splitBadge}</span>
         <span class="who">${escape(e.paid_by)}</span>
         <span class="amount">${escape(fmtMoney(e.amount, e.currency))}</span>
       `;
@@ -2332,7 +2466,10 @@ function tripCommand(rest) {
     }
     const amount = args[0];
     const description = args.slice(1).join(' ');
-    return tripAddExpense({ amount, description, paidBy });
+    return tripAddExpense({
+      amount, description, paidBy,
+      participants: currentParticipants()  // honors any chips toggled in the panel
+    });
   }
 
   if (sub === 'rm' || sub === 'del') {
@@ -2387,9 +2524,17 @@ document.getElementById('expense-form').addEventListener('submit', (e) => {
   const amount = document.getElementById('exp-amount').value.trim();
   const description = document.getElementById('exp-desc').value.trim();
   const paidBy = document.getElementById('exp-paid').value;
-  tripAddExpense({ amount, description, paidBy }).then(() => {
+  const participants = currentParticipants();
+  if (participants.length === 0) {
+    toast('split with at least one member', 'err');
+    return;
+  }
+  tripAddExpense({ amount, description, paidBy, participants }).then(() => {
     document.getElementById('exp-amount').value = '';
     document.getElementById('exp-desc').value   = '';
+    // Reset split selection — most expenses default to all-in.
+    splitExcluded.clear();
+    renderSplitChips();
     if (!isMobile()) document.getElementById('exp-amount').focus();
   });
 });
