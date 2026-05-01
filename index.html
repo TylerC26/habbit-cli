@@ -803,6 +803,83 @@
      inside the panel-body (which already scrolls). */
   #panel-trip .expense-list { max-height: none; }
 
+  /* ─── Inline trip login (replaces modal) ────────────────── */
+  .trip-back-row { display: inline-flex; align-items: center; gap: 10px; }
+  .trip-back {
+    background: transparent;
+    border: 1px solid var(--fg-faint);
+    color: var(--fg-dim);
+    font: inherit;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 1px 6px;
+    cursor: pointer;
+  }
+  .trip-back:hover { color: var(--fg); border-color: var(--fg); }
+
+  #trip-login .trip-h2 {
+    margin: 0 0 4px;
+    font-family: 'VT323', monospace;
+    font-size: 26px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-shadow: var(--glow-amber);
+  }
+  #trip-login .trip-sub {
+    margin: 0 0 14px;
+    color: var(--fg-dim);
+    font-size: 11px;
+    line-height: 1.55;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+  #trip-login label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--fg-dim);
+    text-transform: uppercase;
+    margin: 10px 0 4px;
+  }
+  #trip-login input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--fg-faint);
+    color: var(--fg);
+    font: inherit;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 6px 8px;
+    outline: 0;
+  }
+  #trip-login input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 10px rgba(255,176,0,0.35);
+    color: var(--fg);
+  }
+  .trip-login-actions {
+    display: flex; justify-content: flex-end; gap: 8px;
+    margin-top: 16px;
+  }
+  .trip-login-actions button {
+    background: transparent;
+    border: 1px solid var(--fg-faint);
+    color: var(--fg-dim);
+    font: inherit;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .trip-login-actions button.primary {
+    border-color: var(--fg);
+    color: var(--fg);
+    text-shadow: 0 0 4px rgba(150,255,120,0.5);
+  }
+  .trip-login-actions button.primary:hover { background: rgba(150,255,120,0.08); }
+
   .trip-empty {
     text-align: center;
     color: var(--fg-dim);
@@ -970,24 +1047,43 @@
     <section class="panel" id="panel-trip">
       <div class="panel-title">
         <span id="trip-panel-title">./trip — detail expenses</span>
-        <span class="dots"><span></span><span></span><span></span></span>
+        <span class="trip-back-row">
+          <button id="trip-back" class="trip-back" title="back to habits">[ ← habits ]</button>
+          <span class="dots"><span></span><span></span><span></span></span>
+        </span>
       </div>
       <div class="panel-body">
-        <div class="trip-head">
-          <h2 id="trip-title">TRIP :: —</h2>
-          <div class="trip-code">
-            code: <code id="trip-code-val">—</code>
-            <button class="copy" id="trip-copy">copy</button>
+        <!-- LOGIN VIEW: shown when no trip is joined -->
+        <div id="trip-login" style="display:none;">
+          <h2 class="trip-h2">TRIP :: LOGIN</h2>
+          <p class="trip-sub">// join an existing trip with a code shared by a friend,<br>
+             or start a new trip and share the code with them.</p>
+
+          <label for="tl-code">TRIP CODE</label>
+          <input id="tl-code" type="text" placeholder="e.g. PARIS9" autocomplete="off" spellcheck="false" maxlength="12">
+
+          <label for="tl-name">YOUR DISPLAY NAME</label>
+          <input id="tl-name" type="text" placeholder="e.g. tyler" autocomplete="off" spellcheck="false" maxlength="32">
+
+          <label for="tl-newname" style="margin-top:14px;">— OR — START A NEW TRIP (NAME)</label>
+          <input id="tl-newname" type="text" placeholder="e.g. paris 2026" autocomplete="off" spellcheck="false" maxlength="64">
+
+          <div class="trip-login-actions">
+            <button id="tl-create">create trip</button>
+            <button id="tl-join" class="primary">join trip</button>
           </div>
         </div>
 
-        <div id="trip-empty" class="trip-empty" style="display:none;">
-          // no active trip<br><br>
-          click <kbd>TRIP</kbd> in the topbar to log in with a code,<br>
-          or type <kbd>trip new &lt;name&gt; as &lt;you&gt;</kbd>
-        </div>
+        <!-- DETAIL VIEW: shown when a trip is joined -->
+        <div id="trip-detail" style="display:none;">
+          <div class="trip-head">
+            <h2 id="trip-title">TRIP :: —</h2>
+            <div class="trip-code">
+              code: <code id="trip-code-val">—</code>
+              <button class="copy" id="trip-copy">copy</button>
+            </div>
+          </div>
 
-        <div id="trip-body">
           <div class="member-row" id="trip-members"></div>
 
           <form class="expense-form" id="expense-form" autocomplete="off">
@@ -1072,29 +1168,6 @@
   </div>
 </div>
 
-<div class="modal-backdrop" id="trip-login-modal">
-  <div class="modal">
-    <h2>TRIP :: LOGIN</h2>
-    <p>// join an existing trip with a code shared by a friend,<br>
-       or start a new trip and share the code with them.</p>
-
-    <label for="tl-code">TRIP CODE</label>
-    <input id="tl-code" type="text" placeholder="e.g. PARIS9" autocomplete="off" spellcheck="false" maxlength="12">
-
-    <label for="tl-name">YOUR DISPLAY NAME</label>
-    <input id="tl-name" type="text" placeholder="e.g. tyler" autocomplete="off" spellcheck="false" maxlength="32">
-
-    <label for="tl-newname" style="margin-top:14px;">— OR — START A NEW TRIP (NAME)</label>
-    <input id="tl-newname" type="text" placeholder="e.g. paris 2026" autocomplete="off" spellcheck="false" maxlength="64">
-
-    <div class="modal-actions">
-      <button id="tl-cancel">cancel</button>
-      <button id="tl-create">create trip</button>
-      <button id="tl-join" class="primary">join trip</button>
-    </div>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1117,6 +1190,7 @@ function load() {
       // forward-compat defaults for users who saved state before trips existed
       if (!('trip'     in s)) s.trip     = null;
       if (!('expenses' in s)) s.expenses = [];
+      if (!('tripView' in s)) s.tripView = false;
       return s;
     }
   } catch (_) {}
@@ -1141,7 +1215,8 @@ function seed() {
     nextId: 5,
     history: [],
     trip: null,        // { code, name, me, members } once joined
-    expenses: []       // pulled from supabase, scoped by state.trip.code
+    expenses: [],      // pulled from supabase, scoped by state.trip.code
+    tripView: false    // true = show the trip panel (login or detail) inline
   };
 }
 
@@ -1847,6 +1922,7 @@ async function tripCreate(name, me) {
     if (!error) {
       state.trip = { code: data.trip_code, name: data.name, me, members: data.members };
       state.expenses = [];
+      state.tripView = true;
       save();
       logEvt('ok', `trip created — code ${data.trip_code}`, name);
       toast(`trip "${name}" created · code ${data.trip_code}`);
@@ -1876,6 +1952,7 @@ async function tripJoin(code, me) {
   }
   state.trip = { code: data.trip_code, name: data.name, me, members };
   await tripPullExpenses();
+  state.tripView = true;
   save();
   logEvt('ok', `trip joined — ${data.name}`, upper);
   toast(`joined "${data.name}" as ${me}`);
@@ -1975,6 +2052,7 @@ function tripLeave() {
   tripUnsubscribe();
   state.trip = null;
   state.expenses = [];
+  state.tripView = false;  // return to habits view
   save();
   setTripMode();
   toast('left trip');
@@ -2032,29 +2110,27 @@ function computeBalances() {
 }
 
 function renderTrip() {
-  // Always render — the panel is shown/hidden by CSS via the body
-  // [data-trip-active] attribute set in setTripMode(). Bail if the
-  // panel isn't in the DOM yet (e.g. during early boot).
+  // Swap login form vs detail view inside the panel based on state.trip.
+  // The panel itself is shown/hidden by CSS via body[data-trip-active].
   if (!document.getElementById('panel-trip')) return;
+  const loginEl  = document.getElementById('trip-login');
+  const detailEl = document.getElementById('trip-detail');
+  if (!state.trip) {
+    if (loginEl)  loginEl.style.display  = '';
+    if (detailEl) detailEl.style.display = 'none';
+    return;
+  }
+  if (loginEl)  loginEl.style.display  = 'none';
+  if (detailEl) detailEl.style.display = '';
+
   renderTripStats();
   const titleEl   = document.getElementById('trip-title');
   const codeEl    = document.getElementById('trip-code-val');
-  const emptyEl   = document.getElementById('trip-empty');
-  const bodyEl    = document.getElementById('trip-body');
   const memberEl  = document.getElementById('trip-members');
   const paidSel   = document.getElementById('exp-paid');
   const listEl    = document.getElementById('expense-list');
   const balanceEl = document.getElementById('balance-list');
 
-  if (!state.trip) {
-    titleEl.textContent = 'TRIP :: —';
-    codeEl.textContent = '—';
-    emptyEl.style.display = '';
-    bodyEl.style.display = 'none';
-    return;
-  }
-  emptyEl.style.display = 'none';
-  bodyEl.style.display = '';
   titleEl.textContent = 'TRIP :: ' + state.trip.name;
   codeEl.textContent  = state.trip.code;
 
@@ -2122,16 +2198,17 @@ function renderTrip() {
 }
 
 function setTripMode() {
-  // Toggle body attribute so CSS can swap habits panel ↔ trip panel and
-  // habit-stats ↔ trip-stats. Idempotent — safe to call from anywhere.
-  document.body.setAttribute('data-trip-active', state.trip ? 'true' : 'false');
-  // Update topbar pill
+  // state.tripView is the sole gate for "show trip panel inline".
+  // Joining/creating a trip flips it to true; "back to habits" or
+  // "leave trip" flip it to false. Login form vs detail inside the
+  // panel is decided in renderTrip based on state.trip.
+  document.body.setAttribute('data-trip-active', state.tripView ? 'true' : 'false');
   const pill = document.getElementById('trip-pill');
   if (pill) {
     if (state.trip) {
       pill.dataset.state = 'active';
       pill.textContent = state.trip.code;
-      pill.title = `trip "${state.trip.name}" — click to switch or leave`;
+      pill.title = `trip "${state.trip.name}" — click to view`;
     } else {
       pill.dataset.state = 'inactive';
       pill.textContent = 'none';
@@ -2141,17 +2218,28 @@ function setTripMode() {
   renderTrip();
 }
 
-function openTripLoginModal() {
-  document.getElementById('tl-code').value = '';
-  document.getElementById('tl-newname').value = '';
-  // Pre-fill name with current display name if joined, else last-used localStorage value.
-  const last = state.trip ? state.trip.me : (localStorage.getItem('habbit.trip.me') || '');
-  document.getElementById('tl-name').value = last;
-  document.getElementById('trip-login-modal').classList.add('show');
-  setTimeout(() => document.getElementById('tl-code').focus(), 50);
+function openTripLogin() {
+  // Show the login form inline by flipping into trip view.
+  state.tripView = true;
+  save();
+  // Reset login inputs and prefill name with last used.
+  const code = document.getElementById('tl-code');
+  const name = document.getElementById('tl-name');
+  const newn = document.getElementById('tl-newname');
+  if (code) code.value = '';
+  if (newn) newn.value = '';
+  if (name) name.value = state.trip ? state.trip.me : (localStorage.getItem('habbit.trip.me') || '');
+  setTripMode();
+  setTimeout(() => {
+    const el = document.getElementById('tl-code');
+    if (el && !isMobile()) el.focus();
+  }, 30);
 }
-function closeTripLoginModal() {
-  document.getElementById('trip-login-modal').classList.remove('show');
+
+function backToHabits() {
+  state.tripView = false;
+  save();
+  setTripMode();
   if (!isMobile()) cmdInput.focus();
 }
 
@@ -2164,7 +2252,6 @@ async function submitTripJoin() {
   const me   = document.getElementById('tl-name').value.trim();
   if (!code) { toast('trip code required', 'err'); return; }
   if (!me)   { toast('display name required', 'err'); return; }
-  closeTripLoginModal();
   rememberMe(me);
   await tripJoin(code, me);
 }
@@ -2174,7 +2261,6 @@ async function submitTripCreate() {
   const me   = document.getElementById('tl-name').value.trim();
   if (!name) { toast('trip name required', 'err'); return; }
   if (!me)   { toast('display name required', 'err'); return; }
-  closeTripLoginModal();
   rememberMe(me);
   await tripCreate(name, me);
 }
@@ -2193,15 +2279,15 @@ async function submitTripCreate() {
 function tripCommand(rest) {
   const sub = (rest[0] || '').toLowerCase();
   if (!sub) {
-    // No subcommand: scroll/focus the trip page if joined, otherwise
-    // open the login modal so the user can input a code or start one.
+    // No subcommand: focus the trip page (joined or login form).
     if (state.trip) {
+      state.tripView = true; save();
       setTripMode();
       const exp = document.getElementById('exp-amount');
       if (exp && !isMobile()) exp.focus();
       toast(`trip "${state.trip.name}" · code ${state.trip.code}`);
     } else {
-      openTripLoginModal();
+      openTripLogin();
     }
     return;
   }
@@ -2280,7 +2366,7 @@ function tripCommand(rest) {
   err(`trip: unknown subcommand "${sub}". try \`help\``);
 }
 
-/* Trip panel + login-modal wiring */
+/* Trip panel inline wiring */
 document.getElementById('trip-leave').addEventListener('click', () => {
   if (!state.trip) return;
   if (!confirm('Leave this trip? You can rejoin with the trip code.')) return;
@@ -2308,11 +2394,20 @@ document.getElementById('expense-form').addEventListener('submit', (e) => {
   });
 });
 
-// Trip pill in topbar — primary entry point for joining a trip.
-document.getElementById('trip-pill').addEventListener('click', openTripLoginModal);
+// Trip pill in topbar: if no trip joined, swap main panel to inline
+// login form; if joined, swap to detail view.
+document.getElementById('trip-pill').addEventListener('click', () => {
+  if (state.trip) {
+    state.tripView = true; save(); setTripMode();
+  } else {
+    openTripLogin();
+  }
+});
 
-// Login modal buttons
-document.getElementById('tl-cancel').addEventListener('click', closeTripLoginModal);
+// Back-to-habits button in trip panel header
+document.getElementById('trip-back').addEventListener('click', backToHabits);
+
+// Inline login submit
 document.getElementById('tl-join').addEventListener('click', submitTripJoin);
 document.getElementById('tl-create').addEventListener('click', submitTripCreate);
 document.getElementById('tl-code').addEventListener('keydown', (e) => {
@@ -2321,19 +2416,12 @@ document.getElementById('tl-code').addEventListener('keydown', (e) => {
 document.getElementById('tl-name').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
-    // If a code is present, join. Otherwise if a new-trip name is present, create.
     if (document.getElementById('tl-code').value.trim()) submitTripJoin();
     else if (document.getElementById('tl-newname').value.trim()) submitTripCreate();
   }
 });
 document.getElementById('tl-newname').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); submitTripCreate(); }
-});
-document.getElementById('trip-login-modal').addEventListener('click', (e) => {
-  if (e.target.id === 'trip-login-modal') closeTripLoginModal();
-});
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && document.getElementById('trip-login-modal').classList.contains('show')) closeTripLoginModal();
 });
 
 // Kick off — render first so UI is responsive, then connect (which re-renders).
