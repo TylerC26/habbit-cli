@@ -946,7 +946,7 @@
 
   <!-- ─── MAIN ────────────────────────────────────────────── -->
   <main>
-    <section class="panel reveal" id="panel-habits">
+    <section class="panel" id="panel-habits">
       <div class="panel-title">
         <span>./habits — active tracking</span>
         <span class="dots"><span></span><span></span><span></span></span>
@@ -967,7 +967,7 @@
       </div>
     </section>
 
-    <section class="panel reveal" id="panel-trip">
+    <section class="panel" id="panel-trip">
       <div class="panel-title">
         <span id="trip-panel-title">./trip — detail expenses</span>
         <span class="dots"><span></span><span></span><span></span></span>
@@ -1534,10 +1534,12 @@ async function sbConnect() {
   const cfg = getSbCfg();
   if (!cfg) { setSbState('offline'); return; }
   if (!window.supabase) { setSbState('error'); logEvt('err', 'supabase sdk failed to load'); render(); return; }
-  if (!getUserKey()) { setSbState('offline'); openSyncModal(); return; }
 
   setSbState('connecting');
   try {
+    // Always create the client + sign in anonymously so the trip feature
+    // (which scopes by trip_code, not user_key) works without a habit
+    // password. Habit pull/push remains gated on getUserKey() below.
     sb = window.supabase.createClient(cfg.url, cfg.key, {
       auth: { persistSession: true, storageKey: SUPA_AUTH_KEY, autoRefreshToken: true }
     });
@@ -1547,14 +1549,21 @@ async function sbConnect() {
       if (error) throw error;
       session = data.session;
     }
-    setSbState('syncing');
-    await sbPull();
-    sbReady = true;
-    setSbState('online');
-    logEvt('ok', 'sync online');
-    drainQueue();
+
+    if (getUserKey()) {
+      setSbState('syncing');
+      await sbPull();
+      sbReady = true;
+      setSbState('online');
+      logEvt('ok', 'sync online');
+      drainQueue();
+      sbSubscribe();
+    } else {
+      // No password — habits sync stays off, but trip ops can use sb.
+      setSbState('offline');
+    }
     render();
-    sbSubscribe();
+
     // Resume any trip that was joined in a previous session.
     if (state.trip) {
       try {
@@ -1826,7 +1835,7 @@ function fmtMoney(n, ccy = 'USD') {
 }
 
 async function tripCreate(name, me) {
-  if (!sb) { err('trip: not connected. type `sync` to log in first'); return; }
+  if (!sb) { err('trip: still connecting to supabase, try again in a moment'); return; }
   if (!name) { err('trip new: missing <name>'); return; }
   if (!me)   { err('trip new: missing display name (try `trip new <name> as <you>`)'); return; }
   // Try inserting a unique code; retry on the rare collision.
@@ -1852,7 +1861,7 @@ async function tripCreate(name, me) {
 }
 
 async function tripJoin(code, me) {
-  if (!sb) { err('trip: not connected. type `sync` to log in first'); return; }
+  if (!sb) { err('trip: still connecting to supabase, try again in a moment'); return; }
   if (!code) { err('trip join: missing <code>'); return; }
   if (!me)   { err('trip join: missing display name (try `trip join <code> as <you>`)'); return; }
   const upper = code.toUpperCase();
