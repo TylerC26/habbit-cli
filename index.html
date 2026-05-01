@@ -673,6 +673,19 @@
     letter-spacing: 1.5px;
   }
   .trip-code .copy:hover { color: var(--fg); border-color: var(--fg); }
+  .trip-ccy { color: var(--fg-faint); margin: 0 4px; }
+  #trip-currency-select {
+    background: var(--bg);
+    color: var(--accent);
+    border: 1px dashed var(--fg-faint);
+    font: inherit;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 1px 4px;
+    text-shadow: var(--glow-amber);
+    cursor: pointer;
+  }
+  #trip-currency-select:hover { border-color: var(--accent); }
 
   .member-row {
     display: flex; flex-wrap: wrap; gap: 6px;
@@ -884,7 +897,8 @@
     text-transform: uppercase;
     margin: 10px 0 4px;
   }
-  #trip-login input {
+  #trip-login input,
+  #trip-login select {
     width: 100%;
     background: var(--bg);
     border: 1px solid var(--fg-faint);
@@ -895,7 +909,8 @@
     padding: 6px 8px;
     outline: 0;
   }
-  #trip-login input:focus {
+  #trip-login input:focus,
+  #trip-login select:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 1px var(--accent), 0 0 10px rgba(255,176,0,0.35);
     color: var(--fg);
@@ -1118,6 +1133,29 @@
           <label for="tl-newname" style="margin-top:14px;">— OR — START A NEW TRIP (NAME)</label>
           <input id="tl-newname" type="text" placeholder="e.g. paris 2026" autocomplete="off" spellcheck="false" maxlength="64">
 
+          <label for="tl-currency">CURRENCY (FOR THE NEW TRIP)</label>
+          <select id="tl-currency">
+            <option value="USD">USD — US Dollar</option>
+            <option value="HKD">HKD — Hong Kong Dollar</option>
+            <option value="EUR">EUR — Euro</option>
+            <option value="GBP">GBP — British Pound</option>
+            <option value="JPY">JPY — Japanese Yen</option>
+            <option value="CNY">CNY — Chinese Yuan</option>
+            <option value="SGD">SGD — Singapore Dollar</option>
+            <option value="AUD">AUD — Australian Dollar</option>
+            <option value="CAD">CAD — Canadian Dollar</option>
+            <option value="KRW">KRW — Korean Won</option>
+            <option value="TWD">TWD — Taiwan Dollar</option>
+            <option value="THB">THB — Thai Baht</option>
+            <option value="MYR">MYR — Malaysian Ringgit</option>
+            <option value="IDR">IDR — Indonesian Rupiah</option>
+            <option value="PHP">PHP — Philippine Peso</option>
+            <option value="VND">VND — Vietnamese Dong</option>
+            <option value="INR">INR — Indian Rupee</option>
+            <option value="CHF">CHF — Swiss Franc</option>
+            <option value="NZD">NZD — New Zealand Dollar</option>
+          </select>
+
           <div class="trip-login-actions">
             <button id="tl-create">create trip</button>
             <button id="tl-join" class="primary">join trip</button>
@@ -1131,6 +1169,8 @@
             <div class="trip-code">
               code: <code id="trip-code-val">—</code>
               <button class="copy" id="trip-copy">copy</button>
+              <span class="trip-ccy">·</span>
+              <select id="trip-currency-select" title="trip currency"></select>
             </div>
           </div>
 
@@ -1536,6 +1576,7 @@ function showHelp() {
     'trip rm <id>                  — remove an expense',
     'trip ls                       — print expense count + total',
     'trip balances                 — print who owes whom',
+    'trip currency <code>          — set trip currency (e.g. HKD, USD, JPY)',
     'trip leave                    — leave the current trip'
   ];
   for (const l of lines) logEvt('', l);
@@ -1964,27 +2005,52 @@ function genTripCode() {
   return out;
 }
 
-function fmtMoney(n, ccy = 'USD') {
-  const sym = ccy === 'USD' ? '$' : (ccy + ' ');
-  return sym + (Math.round(Number(n) * 100) / 100).toFixed(2);
+// Top-20-ish list of currencies the app exposes in the picker. Anything
+// outside this list still works (Intl handles all ISO 4217 codes); the
+// list is just what the dropdowns offer.
+const CURRENCIES = [
+  'USD','HKD','EUR','GBP','JPY','CNY','SGD','AUD','CAD','KRW',
+  'TWD','THB','MYR','IDR','PHP','VND','INR','CHF','NZD'
+];
+
+function tripCurrency() {
+  return (state.trip && state.trip.currency) || 'USD';
 }
 
-async function tripCreate(name, me) {
+function fmtMoney(n, ccy) {
+  const code = ccy || tripCurrency();
+  const num = Math.round(Number(n) * 100) / 100;
+  try {
+    // 'symbol' (rather than 'narrowSymbol') keeps HK$/NT$/CN¥ distinct
+    // from US$ — important when the trip currency is HKD/SGD/TWD/CNY
+    // since 'narrowSymbol' collapses them all to "$".
+    return new Intl.NumberFormat('en', {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'symbol'
+    }).format(num);
+  } catch {
+    return code + ' ' + num.toFixed(2);
+  }
+}
+
+async function tripCreate(name, me, currency) {
   if (!sb) { err('trip: still connecting to supabase, try again in a moment'); return; }
   if (!name) { err('trip new: missing <name>'); return; }
   if (!me)   { err('trip new: missing display name (try `trip new <name> as <you>`)'); return; }
+  const ccy = (currency || 'USD').toUpperCase();
   // Try inserting a unique code; retry on the rare collision.
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = genTripCode();
     const { data, error } = await sb.from('trips')
-      .insert({ trip_code: code, name, members: [me] })
-      .select('trip_code, name, members').single();
+      .insert({ trip_code: code, name, members: [me], currency: ccy })
+      .select('trip_code, name, members, currency').single();
     if (!error) {
-      state.trip = { code: data.trip_code, name: data.name, me, members: data.members };
+      state.trip = { code: data.trip_code, name: data.name, me, members: data.members, currency: data.currency || 'USD' };
       state.expenses = [];
       state.tripView = true;
       save();
-      logEvt('ok', `trip created — code ${data.trip_code}`, name);
+      logEvt('ok', `trip created — code ${data.trip_code} (${state.trip.currency})`, name);
       toast(`trip "${name}" created · code ${data.trip_code}`);
       tripSubscribe();
       setTripMode();
@@ -2002,7 +2068,7 @@ async function tripJoin(code, me) {
   if (!me)   { err('trip join: missing display name (try `trip join <code> as <you>`)'); return; }
   const upper = code.toUpperCase();
   const { data, error } = await sb.from('trips')
-    .select('trip_code, name, members').eq('trip_code', upper).single();
+    .select('trip_code, name, members, currency').eq('trip_code', upper).single();
   if (error || !data) { err('trip join: code "' + upper + '" not found'); return; }
   let members = data.members || [];
   if (!members.includes(me)) {
@@ -2010,11 +2076,11 @@ async function tripJoin(code, me) {
     const upd = await sb.from('trips').update({ members }).eq('trip_code', upper);
     if (upd.error) { err('trip join: ' + upd.error.message); return; }
   }
-  state.trip = { code: data.trip_code, name: data.name, me, members };
+  state.trip = { code: data.trip_code, name: data.name, me, members, currency: data.currency || 'USD' };
   await tripPullExpenses();
   state.tripView = true;
   save();
-  logEvt('ok', `trip joined — ${data.name}`, upper);
+  logEvt('ok', `trip joined — ${data.name} (${state.trip.currency})`, upper);
   toast(`joined "${data.name}" as ${me}`);
   tripSubscribe();
   setTripMode();
@@ -2023,10 +2089,11 @@ async function tripJoin(code, me) {
 async function tripPullTrip() {
   if (!sb || !state.trip) return;
   const { data, error } = await sb.from('trips')
-    .select('trip_code, name, members').eq('trip_code', state.trip.code).single();
+    .select('trip_code, name, members, currency').eq('trip_code', state.trip.code).single();
   if (error || !data) return;
   state.trip.name = data.name;
   state.trip.members = data.members || [];
+  state.trip.currency = data.currency || 'USD';
   if (!state.trip.members.includes(state.trip.me)) state.trip.members.push(state.trip.me);
   save();
 }
@@ -2260,6 +2327,25 @@ function renderTrip() {
   titleEl.textContent = 'TRIP :: ' + state.trip.name;
   codeEl.textContent  = state.trip.code;
 
+  // Currency dropdown — populated once, then reflects current trip.currency.
+  const ccySel = document.getElementById('trip-currency-select');
+  if (ccySel) {
+    if (ccySel.options.length === 0) {
+      for (const c of CURRENCIES) {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        ccySel.appendChild(opt);
+      }
+    }
+    const cur = state.trip.currency || 'USD';
+    if (![...ccySel.options].some(o => o.value === cur)) {
+      const opt = document.createElement('option');
+      opt.value = cur; opt.textContent = cur;
+      ccySel.appendChild(opt);
+    }
+    ccySel.value = cur;
+  }
+
   // Members
   memberEl.innerHTML = '';
   for (const m of state.trip.members) {
@@ -2303,7 +2389,7 @@ function renderTrip() {
         <span class="when">${escape(when.toLocaleDateString('en-GB', { month:'short', day:'2-digit' }).toUpperCase())}</span>
         <span class="desc">${escape(e.description)}${splitBadge}</span>
         <span class="who">${escape(e.paid_by)}</span>
-        <span class="amount">${escape(fmtMoney(e.amount, e.currency))}</span>
+        <span class="amount">${escape(fmtMoney(e.amount))}</span>
       `;
       const x = document.createElement('button');
       x.className = 'x'; x.title = 'remove'; x.textContent = '×';
@@ -2356,13 +2442,15 @@ function openTripLogin() {
   // Show the login form inline by flipping into trip view.
   state.tripView = true;
   save();
-  // Reset login inputs and prefill name with last used.
+  // Reset login inputs and prefill name + currency with last-used.
   const code = document.getElementById('tl-code');
   const name = document.getElementById('tl-name');
   const newn = document.getElementById('tl-newname');
+  const ccy  = document.getElementById('tl-currency');
   if (code) code.value = '';
   if (newn) newn.value = '';
   if (name) name.value = state.trip ? state.trip.me : (localStorage.getItem('habbit.trip.me') || '');
+  if (ccy)  ccy.value  = localStorage.getItem('habbit.trip.ccy') || 'USD';
   setTripMode();
   setTimeout(() => {
     const el = document.getElementById('tl-code');
@@ -2393,10 +2481,31 @@ async function submitTripJoin() {
 async function submitTripCreate() {
   const name = document.getElementById('tl-newname').value.trim();
   const me   = document.getElementById('tl-name').value.trim();
+  const ccyEl = document.getElementById('tl-currency');
+  const currency = ccyEl ? ccyEl.value : 'USD';
   if (!name) { toast('trip name required', 'err'); return; }
   if (!me)   { toast('display name required', 'err'); return; }
   rememberMe(me);
-  await tripCreate(name, me);
+  localStorage.setItem('habbit.trip.ccy', currency);
+  await tripCreate(name, me, currency);
+}
+
+async function tripSetCurrency(ccy) {
+  if (!sb || !state.trip) return;
+  const code = (ccy || 'USD').toUpperCase();
+  if (code === state.trip.currency) return;
+  const prev = state.trip.currency;
+  state.trip.currency = code;
+  save(); renderTrip();
+  const { error } = await sb.from('trips').update({ currency: code }).eq('trip_code', state.trip.code);
+  if (error) {
+    state.trip.currency = prev;
+    save(); renderTrip();
+    err('trip currency: ' + error.message);
+    return;
+  }
+  toast(`trip currency set to ${code}`);
+  logEvt('ok', `trip currency → ${code}`);
 }
 
 /* trip command parser — supports:
@@ -2495,6 +2604,13 @@ function tripCommand(rest) {
     return;
   }
 
+  if (sub === 'currency' || sub === 'ccy') {
+    if (!state.trip) return err('trip currency: no active trip');
+    const code = (rest[1] || '').trim().toUpperCase();
+    if (!code) return err('trip currency: usage `trip currency <CODE>` (e.g. HKD)');
+    return tripSetCurrency(code);
+  }
+
   if (sub === 'leave') {
     if (!state.trip) return err('trip leave: no active trip');
     return tripLeave();
@@ -2508,6 +2624,9 @@ document.getElementById('trip-leave').addEventListener('click', () => {
   if (!state.trip) return;
   if (!confirm('Leave this trip? You can rejoin with the trip code.')) return;
   tripLeave();
+});
+document.getElementById('trip-currency-select').addEventListener('change', (e) => {
+  tripSetCurrency(e.target.value);
 });
 document.getElementById('trip-copy').addEventListener('click', async () => {
   if (!state.trip) return;

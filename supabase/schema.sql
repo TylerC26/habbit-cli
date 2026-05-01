@@ -102,6 +102,12 @@ create index if not exists expenses_trip_idx on public.expenses(trip_code, creat
 alter table public.expenses
   add column if not exists participants text[] not null default '{}';
 
+-- Each trip has a main currency (ISO 4217). All expenses and balances
+-- are displayed in this currency. Users pick it when creating the
+-- trip (default USD); legacy trips fall back to USD.
+alter table public.trips
+  add column if not exists currency text not null default 'USD';
+
 alter table public.trips    enable row level security;
 alter table public.expenses enable row level security;
 
