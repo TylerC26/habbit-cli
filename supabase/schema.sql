@@ -70,3 +70,46 @@ do $$ begin
   alter publication supabase_realtime add table public.logs;
 exception when duplicate_object then null;
 end $$;
+
+-- ─── Trips & expenses ────────────────────────────────────────
+-- Friends share a ledger by joining the same trip_code. Scoping is purely
+-- query-side (RLS is permissive, like habits/logs above). The trip_code is
+-- the shared secret — share it like a Google Doc link.
+
+create table if not exists public.trips (
+  id          bigint primary key generated always as identity,
+  trip_code   text   not null unique,
+  name        text   not null,
+  members     text[] not null default '{}',
+  created_at  timestamptz not null default now()
+);
+
+create table if not exists public.expenses (
+  id          bigint primary key generated always as identity,
+  trip_code   text not null,
+  amount      numeric(12,2) not null,
+  currency    text not null default 'USD',
+  description text not null,
+  paid_by     text not null,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists expenses_trip_idx on public.expenses(trip_code, created_at desc);
+
+alter table public.trips    enable row level security;
+alter table public.expenses enable row level security;
+
+drop policy if exists "trips shared"    on public.trips;
+drop policy if exists "expenses shared" on public.expenses;
+create policy "trips shared"    on public.trips    for all using (true) with check (true);
+create policy "expenses shared" on public.expenses for all using (true) with check (true);
+
+do $$ begin
+  alter publication supabase_realtime add table public.trips;
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  alter publication supabase_realtime add table public.expenses;
+exception when duplicate_object then null;
+end $$;

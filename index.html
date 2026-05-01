@@ -618,6 +618,175 @@
   .modal-actions button.primary:hover { background: rgba(150,255,120,0.08); }
   .modal-actions button.danger:hover  { border-color: var(--danger); color: var(--danger); }
 
+  /* ─── Trip modal (wider; ledger + form + balances) ──────── */
+  .modal.trip { width: min(720px, 96vw); }
+  .trip-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .trip-head h2 { margin: 0; }
+  .trip-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--fg-dim);
+    letter-spacing: 1.5px;
+  }
+  .trip-code code {
+    color: var(--fg);
+    background: rgba(150,255,120,0.06);
+    padding: 2px 6px;
+    border: 1px dashed var(--fg-faint);
+    margin-left: 4px;
+    user-select: all;
+  }
+  .trip-code .copy {
+    margin-left: 6px;
+    background: transparent;
+    border: 1px solid var(--fg-faint);
+    color: var(--fg-dim);
+    font: inherit; font-size: 10px;
+    padding: 2px 6px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+  .trip-code .copy:hover { color: var(--fg); border-color: var(--fg); }
+
+  .member-row {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin: 6px 0 12px;
+    align-items: center;
+  }
+  .member-chip {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    border: 1px solid var(--fg-faint);
+    padding: 2px 8px;
+  }
+  .member-chip.me { color: var(--accent); border-color: var(--accent); text-shadow: var(--glow-amber); }
+
+  .expense-form {
+    display: grid;
+    grid-template-columns: 110px 1fr 140px auto;
+    gap: 6px;
+    margin: 8px 0 12px;
+  }
+  .expense-form input, .expense-form select {
+    background: var(--bg);
+    border: 1px solid var(--fg-faint);
+    color: var(--fg);
+    font: inherit; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 6px 8px;
+    outline: 0;
+  }
+  .expense-form input:focus, .expense-form select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 10px rgba(255,176,0,0.35);
+  }
+  .expense-form button {
+    background: transparent;
+    border: 1px solid var(--fg);
+    color: var(--fg);
+    font: inherit; font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .expense-form button:hover { background: rgba(150,255,120,0.08); }
+
+  .expense-list {
+    max-height: 32vh;
+    overflow-y: auto;
+    border-top: 1px dashed var(--fg-faint);
+    border-bottom: 1px dashed var(--fg-faint);
+    padding: 4px 0;
+  }
+  .expense-row {
+    display: grid;
+    grid-template-columns: 78px 1fr 80px 80px 24px;
+    gap: 8px;
+    padding: 4px 2px;
+    font-size: 12px;
+    align-items: baseline;
+    border-bottom: 1px dotted var(--fg-faint);
+  }
+  .expense-row:last-child { border-bottom: 0; }
+  .expense-row .when   { color: var(--fg-faint); font-size: 10px; letter-spacing: 1px; }
+  .expense-row .who    { color: var(--accent); text-transform: uppercase; font-size: 10px; letter-spacing: 1.5px; }
+  .expense-row .amount { color: var(--fg); text-align: right; }
+  .expense-row .desc   { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .expense-row .x {
+    background: transparent;
+    border: 0;
+    color: var(--fg-faint);
+    font: inherit; font-size: 14px;
+    cursor: pointer;
+  }
+  .expense-row .x:hover { color: var(--danger); }
+  .expense-empty {
+    color: var(--fg-faint);
+    font-size: 11px;
+    text-align: center;
+    padding: 18px 0;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .balances {
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--fg-dim);
+    letter-spacing: 1px;
+  }
+  .balances h3 {
+    margin: 0 0 6px;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-shadow: var(--glow-amber);
+  }
+  .balance-row {
+    padding: 2px 0;
+    color: var(--fg);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-size: 11px;
+  }
+  .balance-row.settled { color: var(--success); }
+
+  .trip-empty {
+    text-align: center;
+    color: var(--fg-dim);
+    font-size: 12px;
+    padding: 20px 0;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    line-height: 1.8;
+  }
+  .trip-empty kbd {
+    background: var(--bg);
+    border: 1px dashed var(--fg-faint);
+    color: var(--fg);
+    padding: 1px 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: lowercase;
+  }
+
+  @media (max-width: 1024px) {
+    .expense-form { grid-template-columns: 1fr 1fr; }
+    .expense-form button { grid-column: 1 / -1; }
+    .expense-row { grid-template-columns: 1fr 70px 70px 24px; }
+    .expense-row .when { display: none; }
+  }
+
   /* ─── Stagger reveal ─────────────────────────────────────── */
   .reveal { opacity: 0; transform: translateY(8px); }
   .reveal.in { animation: reveal 0.45s ease forwards; }
@@ -782,7 +951,7 @@
       <span class="caret"></span>
     </div>
     <div class="hint">
-      try: <kbd>add &lt;name&gt;</kbd> <kbd>done &lt;id&gt;</kbd> <kbd>undo &lt;id&gt;</kbd> <kbd>rm &lt;id&gt;</kbd> <kbd>sync</kbd> <kbd>syncdb</kbd> <kbd>help</kbd> <kbd>clear</kbd> <kbd>reset</kbd>
+      try: <kbd>add &lt;name&gt;</kbd> <kbd>done &lt;id&gt;</kbd> <kbd>undo &lt;id&gt;</kbd> <kbd>rm &lt;id&gt;</kbd> <kbd>sync</kbd> <kbd>syncdb</kbd> <kbd>trip</kbd> <kbd>help</kbd> <kbd>clear</kbd> <kbd>reset</kbd>
       &nbsp;&nbsp;·&nbsp;&nbsp; arrow keys = history &nbsp;·&nbsp; tab = autocomplete
     </div>
   </footer>
@@ -799,6 +968,47 @@
       <button id="sync-disconnect" class="danger">log out</button>
       <button id="sync-cancel">cancel</button>
       <button id="sync-save" class="primary">log in</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="trip-modal">
+  <div class="modal trip">
+    <div class="trip-head">
+      <h2 id="trip-title">TRIP :: —</h2>
+      <div class="trip-code">
+        code: <code id="trip-code-val">—</code>
+        <button class="copy" id="trip-copy">copy</button>
+      </div>
+    </div>
+
+    <div id="trip-empty" class="trip-empty" style="display:none;">
+      // no active trip<br><br>
+      start one with <kbd>trip new &lt;name&gt;</kbd><br>
+      or join one with <kbd>trip join &lt;code&gt;</kbd>
+    </div>
+
+    <div id="trip-body">
+      <div class="member-row" id="trip-members"></div>
+
+      <form class="expense-form" id="expense-form" autocomplete="off">
+        <input id="exp-amount" type="text" inputmode="decimal" placeholder="AMOUNT" spellcheck="false">
+        <input id="exp-desc" type="text" placeholder="DESCRIPTION" spellcheck="false">
+        <select id="exp-paid"></select>
+        <button type="submit">add</button>
+      </form>
+
+      <div class="expense-list" id="expense-list"></div>
+
+      <div class="balances">
+        <h3>BALANCES</h3>
+        <div id="balance-list"></div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="trip-leave" class="danger">leave trip</button>
+      <button id="trip-close" class="primary">close</button>
     </div>
   </div>
 </div>
@@ -820,7 +1030,13 @@ const state = load();
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const s = JSON.parse(raw);
+      // forward-compat defaults for users who saved state before trips existed
+      if (!('trip'     in s)) s.trip     = null;
+      if (!('expenses' in s)) s.expenses = [];
+      return s;
+    }
   } catch (_) {}
   return seed();
 }
@@ -841,7 +1057,9 @@ function seed() {
       { ts: Date.now() - 1000 * 60 * 60 * 6, kind: 'ok',  msg: 'check', name: 'morning pages' }
     ],
     nextId: 5,
-    history: []
+    history: [],
+    trip: null,        // { code, name, me, members } once joined
+    expenses: []       // pulled from supabase, scoped by state.trip.code
   };
 }
 
@@ -1075,6 +1293,7 @@ function exec(line) {
         .then(() => { render(); logEvt('ok', `pulled ${state.habits.length} habits from supabase`); toast(`synced ${state.habits.length} habits`); render(); })
         .catch(e => err('syncdb: ' + (e.message || e)));
       break;
+    case 'trip':  tripCommand(rest);                                          break;
     default:      err(`${cmd}: command not found. type \`help\``);
   }
   save();
@@ -1093,7 +1312,18 @@ function showHelp() {
     'sync pull       — re-pull from supabase (cloud is authoritative)',
     'sync push       — upload local habits when cloud is empty',
     'sync off        — log out and clear local state',
-    'syncdb          — pull all habits from supabase and render'
+    'syncdb          — pull all habits from supabase and render',
+    '',
+    'trip                          — open the trip expenses page',
+    'trip new <name> as <you>      — start a new trip (prints share code)',
+    'trip join <code> as <you>     — join a friend\'s trip by code',
+    'trip me <name>                — change your display name',
+    'trip add <amount> <desc>      — log an expense (you paid)',
+    'trip add @who <amount> <desc> — log an expense paid by @who',
+    'trip rm <id>                  — remove an expense',
+    'trip ls                       — print expense count + total',
+    'trip balances                 — print who owes whom',
+    'trip leave                    — leave the current trip'
   ];
   for (const l of lines) logEvt('', l);
   render();
@@ -1243,6 +1473,17 @@ async function sbConnect() {
     drainQueue();
     render();
     sbSubscribe();
+    // Resume any trip that was joined in a previous session.
+    if (state.trip) {
+      try {
+        await tripPullTrip();
+        await tripPullExpenses();
+        tripSubscribe();
+        renderTrip();
+      } catch (e) {
+        console.warn('trip resume:', e.message || e);
+      }
+    }
   } catch (e) {
     setSbState('error');
     logEvt('err', 'sync: ' + (e.message || e));
@@ -1277,6 +1518,7 @@ async function sbPull() {
 function sbDisconnect() {
   if (sbChannel && sb) { try { sb.removeChannel(sbChannel); } catch {} }
   sbChannel = null;
+  if (typeof tripUnsubscribe === 'function') tripUnsubscribe();
   if (sb) { try { sb.auth.signOut(); } catch {} }
   clearUserKey();
   localStorage.removeItem(SUPA_AUTH_KEY);
@@ -1476,6 +1718,437 @@ document.addEventListener('keydown', (e) => {
     if (e.target.closest('button, a, input')) return;
     p.classList.toggle('open');
   });
+});
+
+/* ─── Trips & expenses ───────────────────────────────────
+   Friends share a ledger by joining the same trip_code. Scoping is
+   query-side only — anyone with the code can read/write. RLS is
+   permissive (matches the habits/logs philosophy). Treat the code
+   like a Google Doc share link.
+
+   state.trip = { code, name, me, members }
+   state.expenses = [{ id, trip_code, amount, currency, description, paid_by, created_at }] */
+
+let tripChannel = null;
+
+function genTripCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I,O,0,1
+  let out = '';
+  for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+function fmtMoney(n, ccy = 'USD') {
+  const sym = ccy === 'USD' ? '$' : (ccy + ' ');
+  return sym + (Math.round(Number(n) * 100) / 100).toFixed(2);
+}
+
+async function tripCreate(name, me) {
+  if (!sb) { err('trip: not connected. type `sync` to log in first'); return; }
+  if (!name) { err('trip new: missing <name>'); return; }
+  if (!me)   { err('trip new: missing display name (try `trip new <name> as <you>`)'); return; }
+  // Try inserting a unique code; retry on the rare collision.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = genTripCode();
+    const { data, error } = await sb.from('trips')
+      .insert({ trip_code: code, name, members: [me] })
+      .select('trip_code, name, members').single();
+    if (!error) {
+      state.trip = { code: data.trip_code, name: data.name, me, members: data.members };
+      state.expenses = [];
+      save();
+      logEvt('ok', `trip created — code ${data.trip_code}`, name);
+      toast(`trip "${name}" created · code ${data.trip_code}`);
+      tripSubscribe();
+      openTripModal();
+      return;
+    }
+    // 23505 = unique_violation. Retry. Anything else: bail.
+    if (error.code !== '23505') { err('trip new: ' + error.message); return; }
+  }
+  err('trip new: failed to allocate trip code, try again');
+}
+
+async function tripJoin(code, me) {
+  if (!sb) { err('trip: not connected. type `sync` to log in first'); return; }
+  if (!code) { err('trip join: missing <code>'); return; }
+  if (!me)   { err('trip join: missing display name (try `trip join <code> as <you>`)'); return; }
+  const upper = code.toUpperCase();
+  const { data, error } = await sb.from('trips')
+    .select('trip_code, name, members').eq('trip_code', upper).single();
+  if (error || !data) { err('trip join: code "' + upper + '" not found'); return; }
+  let members = data.members || [];
+  if (!members.includes(me)) {
+    members = [...members, me];
+    const upd = await sb.from('trips').update({ members }).eq('trip_code', upper);
+    if (upd.error) { err('trip join: ' + upd.error.message); return; }
+  }
+  state.trip = { code: data.trip_code, name: data.name, me, members };
+  await tripPullExpenses();
+  save();
+  logEvt('ok', `trip joined — ${data.name}`, upper);
+  toast(`joined "${data.name}" as ${me}`);
+  tripSubscribe();
+  openTripModal();
+}
+
+async function tripPullTrip() {
+  if (!sb || !state.trip) return;
+  const { data, error } = await sb.from('trips')
+    .select('trip_code, name, members').eq('trip_code', state.trip.code).single();
+  if (error || !data) return;
+  state.trip.name = data.name;
+  state.trip.members = data.members || [];
+  if (!state.trip.members.includes(state.trip.me)) state.trip.members.push(state.trip.me);
+  save();
+}
+
+async function tripPullExpenses() {
+  if (!sb || !state.trip) return;
+  const { data, error } = await sb.from('expenses')
+    .select('id, trip_code, amount, currency, description, paid_by, created_at')
+    .eq('trip_code', state.trip.code)
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  state.expenses = data;
+  save();
+}
+
+async function tripAddExpense({ amount, description, paidBy }) {
+  if (!sb) { err('trip: not connected'); return; }
+  if (!state.trip) { err('trip: join a trip first'); return; }
+  const amt = Number(amount);
+  if (!isFinite(amt) || amt <= 0) { err('trip add: amount must be a positive number'); return; }
+  if (!description) { err('trip add: missing description'); return; }
+  const who = paidBy || state.trip.me;
+  if (!state.trip.members.includes(who)) {
+    // auto-add unknown payer to the trip's member list
+    const members = [...state.trip.members, who];
+    await sb.from('trips').update({ members }).eq('trip_code', state.trip.code);
+    state.trip.members = members;
+  }
+  const { data, error } = await sb.from('expenses')
+    .insert({ trip_code: state.trip.code, amount: amt, description, paid_by: who })
+    .select('id, trip_code, amount, currency, description, paid_by, created_at').single();
+  if (error) { err('trip add: ' + error.message); return; }
+  state.expenses.unshift(data);
+  save(); renderTrip();
+  toast(`+ ${fmtMoney(amt)} · ${description}`);
+  logEvt('ok', `expense ${fmtMoney(amt)} (${who})`, description);
+}
+
+async function tripRemoveExpense(id) {
+  if (!sb || !state.trip) { err('trip rm: no active trip'); return; }
+  const i = state.expenses.findIndex(e => e.id === id);
+  if (i === -1) { err(`trip rm: id ${id} not found`); return; }
+  const [e] = state.expenses.splice(i, 1);
+  save(); renderTrip();
+  const { error } = await sb.from('expenses').delete().eq('id', id);
+  if (error) { err('trip rm: ' + error.message); return; }
+  toast(`- removed ${fmtMoney(e.amount)} · ${e.description}`, 'err');
+  logEvt('err', `expense removed ${fmtMoney(e.amount)}`, e.description);
+}
+
+function tripSubscribe() {
+  if (!sb || !state.trip) return;
+  if (tripChannel) { try { sb.removeChannel(tripChannel); } catch {} tripChannel = null; }
+  let pending = false;
+  const refetch = () => {
+    if (pending) return;
+    pending = true;
+    setTimeout(() => {
+      pending = false;
+      Promise.all([tripPullTrip(), tripPullExpenses()])
+        .then(renderTrip)
+        .catch(e => console.warn('trip rt:', e.message || e));
+    }, 200);
+  };
+  tripChannel = sb
+    .channel('trip-' + state.trip.code)
+    .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'expenses', filter: 'trip_code=eq.' + state.trip.code },
+        refetch)
+    .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'trips', filter: 'trip_code=eq.' + state.trip.code },
+        refetch)
+    .subscribe();
+}
+
+function tripUnsubscribe() {
+  if (tripChannel && sb) { try { sb.removeChannel(tripChannel); } catch {} }
+  tripChannel = null;
+}
+
+function tripLeave() {
+  tripUnsubscribe();
+  state.trip = null;
+  state.expenses = [];
+  save();
+  closeTripModal();
+  toast('left trip');
+  logEvt('', 'trip left');
+}
+
+/* Pure balance math — equal split across members.
+   Returns [{ from, to, amount }] suggesting settlements. */
+function computeBalances() {
+  if (!state.trip) return [];
+  const members = state.trip.members.slice();
+  if (members.length === 0) return [];
+  const total = state.expenses.reduce((s, e) => s + Number(e.amount), 0);
+  const share = total / members.length;
+  const net = Object.fromEntries(members.map(m => [m, -share])); // each starts owing their share
+  for (const e of state.expenses) {
+    if (!(e.paid_by in net)) net[e.paid_by] = -share; // safety
+    net[e.paid_by] += Number(e.amount);
+  }
+  // Greedy settle: largest creditor pays largest debtor.
+  const creditors = Object.entries(net).filter(([,v]) => v >  0.005).map(([n,v]) => ({n, v}));
+  const debtors   = Object.entries(net).filter(([,v]) => v < -0.005).map(([n,v]) => ({n, v: -v}));
+  creditors.sort((a,b) => b.v - a.v);
+  debtors  .sort((a,b) => b.v - a.v);
+  const out = [];
+  while (creditors.length && debtors.length) {
+    const c = creditors[0], d = debtors[0];
+    const amt = Math.min(c.v, d.v);
+    out.push({ from: d.n, to: c.n, amount: amt });
+    c.v -= amt; d.v -= amt;
+    if (c.v < 0.005) creditors.shift();
+    if (d.v < 0.005) debtors.shift();
+  }
+  return out;
+}
+
+function renderTrip() {
+  const modal = document.getElementById('trip-modal');
+  if (!modal.classList.contains('show')) return;
+  const titleEl   = document.getElementById('trip-title');
+  const codeEl    = document.getElementById('trip-code-val');
+  const emptyEl   = document.getElementById('trip-empty');
+  const bodyEl    = document.getElementById('trip-body');
+  const memberEl  = document.getElementById('trip-members');
+  const paidSel   = document.getElementById('exp-paid');
+  const listEl    = document.getElementById('expense-list');
+  const balanceEl = document.getElementById('balance-list');
+
+  if (!state.trip) {
+    titleEl.textContent = 'TRIP :: —';
+    codeEl.textContent = '—';
+    emptyEl.style.display = '';
+    bodyEl.style.display = 'none';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  bodyEl.style.display = '';
+  titleEl.textContent = 'TRIP :: ' + state.trip.name;
+  codeEl.textContent  = state.trip.code;
+
+  // Members
+  memberEl.innerHTML = '';
+  for (const m of state.trip.members) {
+    const chip = document.createElement('span');
+    chip.className = 'member-chip' + (m === state.trip.me ? ' me' : '');
+    chip.textContent = m;
+    memberEl.appendChild(chip);
+  }
+
+  // Paid-by select
+  const prev = paidSel.value;
+  paidSel.innerHTML = '';
+  for (const m of state.trip.members) {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    paidSel.appendChild(opt);
+  }
+  paidSel.value = state.trip.members.includes(prev) ? prev : state.trip.me;
+
+  // Expense list
+  listEl.innerHTML = '';
+  if (state.expenses.length === 0) {
+    const e = document.createElement('div');
+    e.className = 'expense-empty';
+    e.textContent = '// no expenses yet';
+    listEl.appendChild(e);
+  } else {
+    for (const e of state.expenses) {
+      const row = document.createElement('div');
+      row.className = 'expense-row';
+      const when = new Date(e.created_at);
+      row.innerHTML = `
+        <span class="when">${escape(when.toLocaleDateString('en-GB', { month:'short', day:'2-digit' }).toUpperCase())}</span>
+        <span class="desc">${escape(e.description)}</span>
+        <span class="who">${escape(e.paid_by)}</span>
+        <span class="amount">${escape(fmtMoney(e.amount, e.currency))}</span>
+      `;
+      const x = document.createElement('button');
+      x.className = 'x'; x.title = 'remove'; x.textContent = '×';
+      x.addEventListener('click', () => tripRemoveExpense(e.id));
+      row.appendChild(x);
+      listEl.appendChild(row);
+    }
+  }
+
+  // Balances
+  balanceEl.innerHTML = '';
+  const settlements = computeBalances();
+  if (settlements.length === 0) {
+    const b = document.createElement('div');
+    b.className = 'balance-row settled';
+    b.textContent = state.expenses.length === 0 ? '// nothing to settle yet' : '// all settled up ✓';
+    balanceEl.appendChild(b);
+  } else {
+    for (const s of settlements) {
+      const b = document.createElement('div');
+      b.className = 'balance-row';
+      b.textContent = `${s.from} owes ${s.to} ${fmtMoney(s.amount)}`;
+      balanceEl.appendChild(b);
+    }
+  }
+}
+
+function openTripModal() {
+  document.getElementById('trip-modal').classList.add('show');
+  renderTrip();
+  setTimeout(() => {
+    if (state.trip && !isMobile()) document.getElementById('exp-amount').focus();
+  }, 50);
+}
+function closeTripModal() {
+  document.getElementById('trip-modal').classList.remove('show');
+  if (!isMobile()) cmdInput.focus();
+}
+
+/* trip command parser — supports:
+   trip                       open the page
+   trip new <name> as <me>    create a trip
+   trip join <code> as <me>   join existing
+   trip me <name>             change your display name (within a joined trip)
+   trip add <amount> <desc>          (paid by you)
+   trip add @who <amount> <desc>     (paid by someone else)
+   trip rm <id>
+   trip ls
+   trip balances
+   trip leave                                                              */
+function tripCommand(rest) {
+  const sub = (rest[0] || '').toLowerCase();
+  if (!sub) {
+    if (state.trip) openTripModal();
+    else {
+      logEvt('', 'no active trip — try `trip new <name> as <you>` or `trip join <code> as <you>`');
+      render();
+      toast('no active trip');
+    }
+    return;
+  }
+
+  if (sub === 'new' || sub === 'create') {
+    // trip new <name…> as <me>
+    const tail = rest.slice(1).join(' ');
+    const m = tail.match(/^(.+?)\s+as\s+(\S.*)$/i);
+    if (!m) return err('trip new: usage `trip new <name> as <you>`');
+    return tripCreate(m[1].trim(), m[2].trim());
+  }
+
+  if (sub === 'join') {
+    const tail = rest.slice(1).join(' ');
+    const m = tail.match(/^(\S+)\s+as\s+(\S.*)$/i);
+    if (!m) return err('trip join: usage `trip join <code> as <you>`');
+    return tripJoin(m[1].trim(), m[2].trim());
+  }
+
+  if (sub === 'me') {
+    if (!state.trip) return err('trip me: no active trip');
+    const name = rest.slice(1).join(' ').trim();
+    if (!name) return err('trip me: missing <name>');
+    state.trip.me = name;
+    if (!state.trip.members.includes(name)) {
+      state.trip.members.push(name);
+      sb.from('trips').update({ members: state.trip.members }).eq('trip_code', state.trip.code)
+        .then(({ error }) => { if (error) console.warn('trip me:', error.message); });
+    }
+    save(); renderTrip(); render();
+    toast(`you are "${name}"`);
+    return;
+  }
+
+  if (sub === 'add') {
+    if (!state.trip) return err('trip add: no active trip');
+    let args = rest.slice(1);
+    let paidBy = state.trip.me;
+    if (args[0] && args[0].startsWith('@')) {
+      paidBy = args[0].slice(1);
+      args = args.slice(1);
+    }
+    const amount = args[0];
+    const description = args.slice(1).join(' ');
+    return tripAddExpense({ amount, description, paidBy });
+  }
+
+  if (sub === 'rm' || sub === 'del') {
+    const id = parseInt(rest[1], 10);
+    if (!Number.isFinite(id)) return err('trip rm: missing <id>');
+    return tripRemoveExpense(id);
+  }
+
+  if (sub === 'ls' || sub === 'list') {
+    if (!state.trip) return err('trip ls: no active trip');
+    const total = state.expenses.reduce((s,e) => s + Number(e.amount), 0);
+    logEvt('', `${state.expenses.length} expenses · total ${fmtMoney(total)}`);
+    render();
+    return;
+  }
+
+  if (sub === 'balances' || sub === 'bal') {
+    if (!state.trip) return err('trip balances: no active trip');
+    const settlements = computeBalances();
+    if (settlements.length === 0) logEvt('ok', 'all settled up');
+    else for (const s of settlements) logEvt('', `${s.from} owes ${s.to} ${fmtMoney(s.amount)}`);
+    render();
+    return;
+  }
+
+  if (sub === 'leave') {
+    if (!state.trip) return err('trip leave: no active trip');
+    return tripLeave();
+  }
+
+  err(`trip: unknown subcommand "${sub}". try \`help\``);
+}
+
+/* Trip modal wiring */
+document.getElementById('trip-close').addEventListener('click', closeTripModal);
+document.getElementById('trip-leave').addEventListener('click', () => {
+  if (!state.trip) return;
+  if (!confirm('Leave this trip? You can rejoin with the trip code.')) return;
+  tripLeave();
+});
+document.getElementById('trip-copy').addEventListener('click', async () => {
+  if (!state.trip) return;
+  try {
+    await navigator.clipboard.writeText(state.trip.code);
+    toast('trip code copied');
+  } catch {
+    toast(state.trip.code);
+  }
+});
+document.getElementById('expense-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!state.trip) return;
+  const amount = document.getElementById('exp-amount').value.trim();
+  const description = document.getElementById('exp-desc').value.trim();
+  const paidBy = document.getElementById('exp-paid').value;
+  tripAddExpense({ amount, description, paidBy }).then(() => {
+    document.getElementById('exp-amount').value = '';
+    document.getElementById('exp-desc').value   = '';
+    if (!isMobile()) document.getElementById('exp-amount').focus();
+  });
+});
+document.getElementById('trip-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'trip-modal') closeTripModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('trip-modal').classList.contains('show')) closeTripModal();
 });
 
 // Kick off — render first so UI is responsive, then connect (which re-renders).
