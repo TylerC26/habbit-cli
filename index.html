@@ -999,10 +999,23 @@
     .stat .label { font-size: 8px; letter-spacing: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .stat .value { font-size: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .brand { font-size: 40px; }
-    /* iOS Safari auto-zooms into any input with computed font-size < 16px;
-       bump inputs so the page no longer scales when a field gains focus. */
+    /* iOS Safari auto-zooms into any focused input/select with computed
+       font-size < 16px; bump every form control so the page never
+       scales when a field gains focus. */
     .cmdline input,
-    .modal input { font-size: 16px; }
+    .modal input,
+    .modal select,
+    .expense-form input,
+    .expense-form select,
+    #trip-login input,
+    #trip-login select,
+    #trip-currency-select,
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    input[type="email"],
+    select,
+    textarea { font-size: 16px; }
 
     /* Collapsible side panels on mobile — they otherwise crowd out the
        habit table. Tap the panel title to expand. */
