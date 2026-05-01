@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>HABBIT.CLI :: terminal habit tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -967,6 +967,9 @@
 
   @media (max-width: 1024px) {
     .expense-form { grid-template-columns: 1fr 1fr; }
+    /* Paid-by select hugs its content (a name) on its own row, then
+       the add button takes the next full row. */
+    .expense-form select { grid-column: 1 / -1; justify-self: start; width: auto; }
     .expense-form button { grid-column: 1 / -1; }
     .expense-row { grid-template-columns: 1fr 70px 70px 24px; }
     .expense-row .when { display: none; }
@@ -999,23 +1002,9 @@
     .stat .label { font-size: 8px; letter-spacing: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .stat .value { font-size: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .brand { font-size: 40px; }
-    /* iOS Safari auto-zooms into any focused input/select with computed
-       font-size < 16px; bump every form control so the page never
-       scales when a field gains focus. */
-    .cmdline input,
-    .modal input,
-    .modal select,
-    .expense-form input,
-    .expense-form select,
-    #trip-login input,
-    #trip-login select,
-    #trip-currency-select,
-    input[type="text"],
-    input[type="password"],
-    input[type="number"],
-    input[type="email"],
-    select,
-    textarea { font-size: 16px; }
+    /* iOS auto-zoom on focus is disabled via the viewport meta
+       (maximum-scale=1.0), so inputs can keep their natural size on
+       mobile and the form stays compact. */
 
     /* Collapsible side panels on mobile — they otherwise crowd out the
        habit table. Tap the panel title to expand. */
@@ -1045,8 +1034,10 @@
     /* Right column should not eat vertical space when both are collapsed. */
     .right-col { grid-template-rows: auto auto; gap: 12px; }
     main { overflow: visible; }
-    .shell { height: auto; min-height: 100vh; }
-    body { overflow: auto; }
+    .shell { height: auto; min-height: 100vh; max-width: 100vw; overflow-x: hidden; }
+    body { overflow-y: auto; overflow-x: hidden; }
+    /* Anything that could overflow horizontally on a narrow phone */
+    html { overflow-x: hidden; }
 
     /* Show only the most recent 5 days of the 7 on mobile so the habit
        name has more room. Cells are rendered oldest → newest, so hide
